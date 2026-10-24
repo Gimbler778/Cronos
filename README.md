@@ -1,20 +1,8 @@
 # Cronos
 
-Cronos is a local-first college timetable optimizer built around a reproducible
-Genetic Algorithm. It validates academic data, generates schedules, reports hard
-constraint violations and soft penalties, and exports completed schedules to CSV.
+Cronos is a local-first college timetable optimizer built around an independently testable genetic algorithm.
 
-## MVP features
-
-- FastAPI backend with Pydantic validation
-- Genetic Algorithm with seeded runs, repair, elitism, and baseline comparison
-- Faculty, room, section, course, time-slot, and teaching-requirement management
-- Hard-constraint validation for clashes, availability, room capacity/type, session counts, and lab blocks
-- Configurable soft-constraint weights and optimization parameters
-- Next.js dashboard with guided data entry, JSON editing, schedule filters, analytics, and CSV export
-- SQLite local persistence with optional PostgreSQL-compatible storage
-
-## Run locally
+## Run both services with one command
 
 From the repository root:
 
@@ -23,15 +11,37 @@ npm install
 npm run dev
 ```
 
-This starts:
+This starts the API at `http://127.0.0.1:8000` and the web app at `http://localhost:3000`.
+Press `Ctrl+C` to stop both processes.
 
-- API: `http://127.0.0.1:8000`
-- Web app: `http://localhost:3000`
+The Neon connection string belongs in `apps/.env` as `DATABASE_URL`. It is server-only,
+ignored by Git, and must never be prefixed with `NEXT_PUBLIC_` or imported by the web app.
 
-For separate setup instructions, see [apps/README.md](apps/README.md) and
-[apps/docs/INSTRUCTIONS.md](apps/docs/INSTRUCTIONS.md).
+## Run the API
+
+From the repository root:
+
+```powershell
+python -m pip install -r apps\requirements.txt
+python -m uvicorn apps.api.main:app --reload
+```
+
+The API is available at `http://127.0.0.1:8000/docs`.
+
+## Run the web app
+
+```powershell
+cd apps\web
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`. The dashboard loads the documented sample dataset,
+validates it, runs a seeded optimization, previews the schedule, and exports CSV.
 
 ## Validate the project
+
+From the repository root:
 
 ```powershell
 npm run test:api
@@ -40,18 +50,11 @@ npm run build:web
 npm run evaluate
 ```
 
-## Documentation
+## Project scope
 
-- [Product requirements](apps/docs/PRD.md)
-- [Architecture](apps/docs/ARCHITECTURE.md)
-- [Algorithm design](apps/docs/ALGORITHM_DESIGN.md)
-- [Data model and API](apps/docs/DATA_MODEL_AND_API.md)
-- [Test plan](apps/docs/TEST_PLAN.md)
-- [Project report](apps/docs/REPORT.md)
-- [Roadmap](apps/docs/ROADMAP.md)
+The current repository targets the local MVP. Production deployment, authentication,
+background jobs, rate limiting, migration rollout, monitoring, and release operations
+are reserved for a later phase.
 
-## Deployment status
-
-This repository currently targets the local MVP. Production deployment,
-authentication, background jobs, rate limiting, migration rollout, monitoring,
-and release operations are reserved for a later phase.
+See the documentation in [apps/docs](apps/docs), including the
+[project report](apps/docs/REPORT.md) and [roadmap](apps/docs/ROADMAP.md).
