@@ -56,7 +56,7 @@ Production database rollout, authentication, background jobs, and hosted deploym
 | Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 15 tests | Add more malformed-slot fixtures |
 | Baseline | Seeded randomized candidate and greedy baseline | `apps/evaluate.py`; backend tests | Tune larger datasets |
 | GA | Selection, crossover, mutation, elitism, bounded repair | Required session identity and reproducibility tests pass | Tune larger datasets |
-| API | Validation, CRUD, runs, analytics, schedule, CSV | 15 backend tests pass | Add auth/rate limits only if required |
+| API | Validation, CRUD, runs, analytics, schedule, CSV | 16 backend tests pass | Add auth/rate limits only if required |
 | UI | Guided record additions, JSON editor, generation controls, filtered schedule, analytics, and async states | Next.js production build and Vitest suite pass | Add browser-level tests if needed |
 | Evaluation | Five-seed comparison on documented sample | Baseline feasible 5/5; GA requires further tuning on the larger sample | Improve search quality on larger datasets |
 

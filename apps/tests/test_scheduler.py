@@ -40,3 +40,12 @@ def test_ga_preserves_required_session_identity_after_operators():
     result = optimize(data, population_size=8, max_generations=8, random_seed=7)
     assert result.candidate is not None
     assert sorted(item.session_id for item in result.candidate.assignments) == ["tr1:1", "tr1:2", "tr1:3"]
+
+
+def test_optimizer_retains_feasible_seed_across_repeated_runs():
+    data = sample()
+    for seed in (1, 7, 42, 99, 123):
+        result = optimize(data, population_size=10, max_generations=20, random_seed=seed)
+        assert result.status == "feasible"
+        assert result.candidate is not None
+        assert result.candidate.hard_violations == 0

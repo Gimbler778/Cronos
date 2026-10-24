@@ -6,7 +6,7 @@ Each required course occurrence becomes a schedulable session. A chromosome is a
 Faculty and section are derived from the session requirement. Model labs as block assignments where possible.
 
 ## Initialization
-Create a population of candidate schedules, biasing choices toward available faculty, suitable rooms, valid slots, and consecutive lab blocks. A few greedy seeds may improve initial quality.
+Create a population of candidate schedules, biasing choices toward available faculty, suitable rooms, valid slots, and consecutive lab blocks. Always retain a feasible greedy seed when one can be constructed so random exploration cannot regress to an infeasible best result.
 
 ## Hard constraint checker
 Count violations for faculty overlap, room overlap, section overlap, unavailability, unsuitable room type/capacity, missing/duplicate sessions, invalid slots, and broken lab blocks. Keep this checker independent from fitness scoring.

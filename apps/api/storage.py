@@ -14,7 +14,7 @@ def _json(value: Any) -> str:
 
 
 class Storage:
-    """Small persistence adapter with SQLite by default and optional PostgreSQL."""
+    """Persistence adapter with SQLite for local development and PostgreSQL on Vercel."""
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL")
@@ -24,6 +24,8 @@ class Storage:
         self._connect()
 
     def _connect(self) -> None:
+        if os.getenv("VERCEL") and not self.database_url:
+            raise RuntimeError("DATABASE_URL must be configured when running on Vercel.")
         if self.database_url:
             try:
                 import psycopg

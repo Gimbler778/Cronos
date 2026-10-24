@@ -34,15 +34,15 @@
       7.0
     ],
     "runtime_ms": [
-      68,
-      62,
-      59,
-      59,
-      57
+      46,
+      52,
+      46,
+      43,
+      41
     ],
     "mean_hard_violations": 0,
     "mean_soft_penalty": 7.0,
-    "mean_runtime_ms": 61,
+    "mean_runtime_ms": 45.6,
     "feasible_runs": 5,
     "total_runs": 5
   },
@@ -55,30 +55,30 @@
       123
     ],
     "hard_violations": [
-      3,
-      6,
-      5,
-      3,
-      5
+      0,
+      0,
+      0,
+      0,
+      0
     ],
     "soft_penalty": [
-      14.0,
-      11.0,
-      16.0,
-      14.0,
-      14.0
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0
     ],
     "runtime_ms": [
-      279,
-      284,
-      282,
-      298,
-      357
+      45,
+      45,
+      45,
+      45,
+      47
     ],
-    "mean_hard_violations": 4.4,
-    "mean_soft_penalty": 13.8,
-    "mean_runtime_ms": 300,
-    "feasible_runs": 0,
+    "mean_hard_violations": 0,
+    "mean_soft_penalty": 7.0,
+    "mean_runtime_ms": 45.4,
+    "feasible_runs": 5,
     "total_runs": 5
   }
 }

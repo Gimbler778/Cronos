@@ -15,10 +15,11 @@ from apps.api.scheduler import expand_sessions, greedy_baseline, optimize, rando
 from apps.api.storage import Storage
 
 router = APIRouter()
-dataset = Dataset()
-runs: dict[str, dict] = {}
 storage = Storage()
-dataset = storage.load_dataset()
+
+
+def _dataset() -> Dataset:
+    return storage.load_dataset()
 
 
 class OptimizationRequest(BaseModel):
@@ -62,7 +63,7 @@ def _validate_references(value: Dataset) -> list[dict[str, str]]:
 
 
 def _record(run_id: str) -> dict:
-    record = runs.get(run_id) or storage.load_run(run_id)
+    record = storage.load_run(run_id)
     if not record:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Optimization run not found."})
     if "candidate" not in record:
@@ -91,22 +92,20 @@ def api_health() -> dict[str, str]:
 
 @router.get("/data")
 def get_data() -> Dataset:
-    return dataset
+    return _dataset()
 
 
 @router.put("/data")
 def replace_data(value: Dataset) -> dict:
-    global dataset
     errors = _validate_references(value)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "One or more references are invalid.", "details": errors})
-    dataset = value
     storage.save_dataset(value)
     return {"saved": True, "counts": {key: len(getattr(value, key)) for key in ("faculty", "rooms", "sections", "courses", "time_slots", "teaching_requirements")}}
 
 
 def _collection(name: str, model: type[BaseModel], value: BaseModel | None = None) -> list | BaseModel:
-    global dataset
+    dataset = _dataset()
     items = list(getattr(dataset, name))
     if value is None:
         return items
@@ -117,8 +116,7 @@ def _collection(name: str, model: type[BaseModel], value: BaseModel | None = Non
     errors = _validate_references(updated)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Entity references are invalid.", "details": errors})
-    dataset = updated
-    storage.save_dataset(dataset)
+    storage.save_dataset(updated)
     return value
 
 
@@ -184,7 +182,7 @@ def add_teaching_requirement(value: TeachingRequirement) -> TeachingRequirement:
 
 @router.put("/{collection}/{item_id}")
 def update_collection_item(collection: str, item_id: str, value: dict) -> BaseModel:
-    global dataset
+    dataset = _dataset()
     model = COLLECTIONS.get(collection)
     if model is None:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Collection not found."})
@@ -199,14 +197,13 @@ def update_collection_item(collection: str, item_id: str, value: dict) -> BaseMo
     errors = _validate_references(updated)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Entity references are invalid.", "details": errors})
-    dataset = updated
-    storage.save_dataset(dataset)
+    storage.save_dataset(updated)
     return replacement
 
 
 @router.delete("/{collection}/{item_id}", status_code=204, response_class=Response)
 def delete_collection_item(collection: str, item_id: str) -> Response:
-    global dataset
+    dataset = _dataset()
     model = COLLECTIONS.get(collection)
     if model is None:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Collection not found."})
@@ -223,19 +220,20 @@ def delete_collection_item(collection: str, item_id: str) -> Response:
         if any(getattr(requirement, field) == item_id for requirement in dataset.teaching_requirements):
             raise HTTPException(status_code=409, detail={"code": "REFERENCED_ENTITY", "message": "Entity is referenced by a teaching requirement."})
     updated = dataset.model_copy(update={name: [item for item in items if item.id != item_id]})
-    dataset = updated
-    storage.save_dataset(dataset)
+    storage.save_dataset(updated)
     return Response(status_code=204)
 
 
 @router.post("/validate")
 def validate_data() -> dict:
+    dataset = _dataset()
     errors = _validate_references(dataset)
     return {"valid": not errors, "errors": errors, "warnings": []}
 
 
 @router.post("/optimization-runs")
 def create_run(request: OptimizationRequest) -> dict:
+    dataset = _dataset()
     errors = _validate_references(dataset)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Validate data before running optimization.", "details": errors})
@@ -258,7 +256,6 @@ def create_run(request: OptimizationRequest) -> dict:
         "candidate": result.candidate,
     }
     candidate = record.pop("candidate")
-    runs[run_id] = {**record, "candidate": candidate}
     storage.save_candidate(run_id, candidate)
     storage.save_run(run_id, record)
     return {key: value for key, value in record.items() if key != "candidate"}
@@ -266,12 +263,13 @@ def create_run(request: OptimizationRequest) -> dict:
 
 @router.get("/optimization-runs")
 def list_runs() -> list[dict]:
-    records = list(runs.values()) + [item for item in storage.list_runs() if item["id"] not in runs]
+    records = storage.list_runs()
     return [{key: value for key, value in record.items() if key not in ("candidate", "history")} for record in records]
 
 
 @router.post("/baseline")
 def create_baseline(request: OptimizationRequest) -> dict:
+    dataset = _dataset()
     errors = _validate_references(dataset)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Validate data before running baseline.", "details": errors})
@@ -286,6 +284,7 @@ def create_baseline(request: OptimizationRequest) -> dict:
 
 @router.post("/baseline/greedy")
 def create_greedy_baseline() -> dict:
+    dataset = _dataset()
     errors = _validate_references(dataset)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Validate data before running baseline.", "details": errors})
@@ -314,7 +313,7 @@ def get_metrics(run_id: str) -> dict:
 def get_schedule(run_id: str) -> dict:
     record = _record(run_id)
     candidate = record["candidate"]
-    run_dataset = Dataset.model_validate(record.get("dataset", dataset.model_dump(mode="json")))
+    run_dataset = Dataset.model_validate(record["dataset"])
     sessions = {item.id: item for item in expand_sessions(run_dataset)}
     slots = {item.id: item for item in run_dataset.time_slots}
     rooms = {item.id: item for item in run_dataset.rooms}
@@ -356,7 +355,7 @@ def get_analytics(run_id: str) -> dict:
     by_room: dict[str, int] = {}
     by_section: dict[str, int] = {}
     if candidate:
-        run_dataset = Dataset.model_validate(record.get("dataset", dataset.model_dump(mode="json")))
+        run_dataset = Dataset.model_validate(record["dataset"])
         sessions = {item.id: item for item in expand_sessions(run_dataset)}
         for assignment in candidate.assignments:
             by_slot[assignment.slot_id] = by_slot.get(assignment.slot_id, 0) + 1
@@ -394,7 +393,7 @@ def export_csv(
     faculty: str | None = None,
 ) -> StreamingResponse:
     record = _record(run_id)
-    run_dataset = Dataset.model_validate(record.get("dataset", dataset.model_dump(mode="json")))
+    run_dataset = Dataset.model_validate(record["dataset"])
     sessions = {item.id: item for item in expand_sessions(run_dataset)}
     slots = {item.id: item for item in run_dataset.time_slots}
     rooms = {item.id: item for item in run_dataset.rooms}
@@ -458,7 +457,6 @@ def export_csv(
 
 @router.post("/sample-data")
 def load_sample_data() -> dict:
-    global dataset
     dataset = sample_dataset()
     storage.save_dataset(dataset)
     return {"loaded": True}

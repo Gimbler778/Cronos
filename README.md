@@ -51,20 +51,25 @@ npm run build:web
 npm run evaluate
 ```
 
-The current automated checks include 15 backend tests, 3 frontend tests, a production build,
+The current automated checks include 16 backend tests, 3 frontend tests, a production build,
 and the recorded multi-seed evaluation.
 
-## Deploy to Vercel
+## Deploy the complete app to Vercel
 
-Vercel can host the Next.js frontend from `apps\web`. Set the Vercel project root to
-`apps\web`, use the default Next.js build settings, and define
-`NEXT_PUBLIC_API_BASE_URL` as the public URL of the separately deployed FastAPI API.
+The repository includes a Vercel serverless entrypoint at `api\index.py` and a
+`vercel.json` that serves both the Next.js app and FastAPI API from one project. Import
+the repository into Vercel with the repository root as the project root. Configure:
 
-The API should run on a service that supports a persistent Python process and must use a
-hosted PostgreSQL database by setting `DATABASE_URL`; SQLite is suitable only for local
-development. Set `CRONOS_WEB_ORIGINS` on the API to the Vercel deployment URL, for example
-`https://cronos.example.com`. Docker is optional for this split deployment and is not
-required by Vercel.
+```text
+DATABASE_URL=<Neon pooled PostgreSQL connection string>
+CRONOS_WEB_ORIGINS=https://your-project.vercel.app
+NEXT_PUBLIC_API_BASE_URL=https://your-project.vercel.app
+```
+
+Do not configure `CRONOS_SQLITE_PATH` in Vercel. SQLite remains available for local
+development only; Vercel instances are stateless and their filesystem is not durable.
+The API reads the dataset and optimization runs from PostgreSQL for every request, so
+cold starts and multiple serverless instances do not lose application state.
 
 ## Project scope
 

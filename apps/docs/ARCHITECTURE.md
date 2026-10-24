@@ -14,7 +14,7 @@ Browser
             -> Fitness evaluator
             -> Genetic Algorithm
        -> Storage adapter
-  -> PostgreSQL/Neon or local SQLite
+  -> PostgreSQL/Neon in Vercel, or local SQLite during development
 ```
 
 ## Frontend
@@ -75,9 +75,15 @@ apps/web/lib/
 ## Principles
 Separate concerns; distinguish hard violations from soft penalties; record seeds and parameters; fail safely; keep local operation as the default.
 
+## Serverless deployment
+The root `api/index.py` exports the FastAPI app for Vercel's Python runtime. API request
+handlers load the current dataset and run records from the storage adapter rather than
+depending on process memory. Vercel deployments must provide `DATABASE_URL`; SQLite is
+retained only for local development. Optimization is intentionally bounded by request
+validation for this college-scale demo; larger workloads should move to background jobs.
+
 ## Later deployment phase
-PostgreSQL/Neon production hardening, background jobs, authentication, rate limiting,
-normalized migration rollout, monitoring, and hosted deployment.
+Background jobs, authentication, rate limiting, normalized migration rollout, and monitoring.
 
 ## Future product extensions
 Manual editing with re-validation, spreadsheet import, PDF export, and alternative optimizer comparison.

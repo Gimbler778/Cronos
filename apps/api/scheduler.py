@@ -152,6 +152,13 @@ def _random_candidate(rng: random.Random, data: Dataset, sessions: list[Session]
     return Candidate([Assignment(session.id, rng.choice(slots), rng.choice(rooms)) for session in sessions])
 
 
+def _copy_candidate(candidate: Candidate) -> Candidate:
+    return Candidate([
+        Assignment(item.session_id, item.slot_id, item.room_id)
+        for item in candidate.assignments
+    ])
+
+
 def _tournament(rng: random.Random, population: list[Candidate], size: int) -> Candidate:
     return min(rng.sample(population, min(size, len(population))), key=lambda item: item.score())
 
@@ -226,7 +233,10 @@ def optimize(
     sessions = expand_sessions(data)
     rng = random.Random(random_seed)
     weights = soft_weights or {}
-    population = [_random_candidate(rng, data, sessions) for _ in range(max(2, population_size))]
+    greedy_seed = greedy_baseline(data).candidate
+    population = [_random_candidate(rng, data, sessions) for _ in range(max(1, population_size - 1))]
+    if greedy_seed is not None:
+        population.append(_copy_candidate(greedy_seed))
     for item in population:
         validate_candidate(data, sessions, item)
         soft_penalty(data, sessions, item, weights)
@@ -240,7 +250,7 @@ def optimize(
         completed = generation
         if best.hard_violations == 0:
             break
-        next_population = [Candidate([Assignment(a.session_id, a.slot_id, a.room_id) for a in item.assignments]) for item in population[:max(1, elite_count)]]
+        next_population = [_copy_candidate(item) for item in population[:max(1, elite_count)]]
         while len(next_population) < len(population):
             left = _tournament(rng, population, tournament_size)
             right = _tournament(rng, population, tournament_size)
