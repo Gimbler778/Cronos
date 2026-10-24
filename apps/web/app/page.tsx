@@ -114,17 +114,22 @@ function Setup({ editor, setEditor, saveData, busy, data }: { editor: string; se
   const [entity, setEntity] = useState<Entity>("faculty");
   const [record, setRecord] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
-  const fields: Record<Entity, Array<{ key: string; label: string; type?: string; placeholder?: string; required?: boolean }>> = {
+  type Field = { key: string; label: string; type?: "number" | "time" | "checkbox" | "slot-list"; placeholder?: string; required?: boolean; help?: string };
+  const fields: Record<Entity, Field[]> = {
     faculty: [
       { key: "id", label: "Short ID", placeholder: "f1", required: true },
       { key: "name", label: "Name", placeholder: "Dr. A. Sharma", required: true },
       { key: "department", label: "Department", placeholder: "Computer Science", required: true },
+      { key: "unavailable_slots", label: "Unavailable slots", type: "slot-list", placeholder: "mon-1, wed-3", help: "Comma-separated time-slot IDs." },
+      { key: "preferred_slots", label: "Preferred slots", type: "slot-list", placeholder: "tue-2, thu-1", help: "Comma-separated time-slot IDs." },
+      { key: "daily_load_limit", label: "Daily teaching limit", type: "number", placeholder: "3", help: "Optional maximum sessions per day." },
     ],
     rooms: [
       { key: "id", label: "Short ID", placeholder: "r1", required: true },
       { key: "name", label: "Room name", placeholder: "Room 101", required: true },
       { key: "capacity", label: "Capacity", type: "number", placeholder: "60", required: true },
       { key: "room_type", label: "Room type", placeholder: "lecture", required: true },
+      { key: "unavailable_slots", label: "Unavailable slots", type: "slot-list", placeholder: "mon-1, fri-4", help: "Comma-separated time-slot IDs." },
     ],
     sections: [
       { key: "id", label: "Short ID", placeholder: "s1", required: true },
@@ -132,13 +137,16 @@ function Setup({ editor, setEditor, saveData, busy, data }: { editor: string; se
       { key: "size", label: "Student count", type: "number", placeholder: "40", required: true },
       { key: "department", label: "Department", placeholder: "Computer Science", required: true },
       { key: "semester", label: "Semester", placeholder: "3", required: true },
+      { key: "unavailable_slots", label: "Unavailable slots", type: "slot-list", placeholder: "mon-1, wed-3", help: "Comma-separated time-slot IDs." },
     ],
     courses: [
       { key: "id", label: "Short ID", placeholder: "c1", required: true },
       { key: "code", label: "Course code", placeholder: "CS301", required: true },
       { key: "name", label: "Course name", placeholder: "Algorithms", required: true },
       { key: "required_room_type", label: "Room type", placeholder: "lecture", required: true },
+      { key: "duration", label: "Duration (slots)", type: "number", placeholder: "1", required: true },
       { key: "sessions_per_week", label: "Sessions per week", type: "number", placeholder: "3", required: true },
+      { key: "consecutive_slots_required", label: "Require consecutive slots", type: "checkbox", help: "Keep multi-slot sessions together." },
     ],
     "time-slots": [
       { key: "id", label: "Short ID", placeholder: "mon-1", required: true },
@@ -153,6 +161,8 @@ function Setup({ editor, setEditor, saveData, busy, data }: { editor: string; se
       { key: "section_id", label: "Section ID", placeholder: "s1", required: true },
       { key: "faculty_id", label: "Faculty ID", placeholder: "f1", required: true },
       { key: "required_sessions", label: "Sessions needed", type: "number", placeholder: "3", required: true },
+      { key: "duration", label: "Duration (slots)", type: "number", placeholder: "1", required: true },
+      { key: "room_type", label: "Room type override", placeholder: "lab", help: "Optional; defaults to the course room type." },
     ],
   };
   const addRecord = async () => {
@@ -161,13 +171,18 @@ function Setup({ editor, setEditor, saveData, busy, data }: { editor: string; se
       const value = Object.fromEntries(fields[entity].map(field => {
         const raw = record[field.key]?.trim() ?? "";
         if (field.required && !raw) throw new Error(`${field.label} is required.`);
-        return [field.key, field.type === "number" ? Number(raw) : raw];
+        if (field.type === "checkbox") return [field.key, record[field.key] === "true"];
+        if (!raw && !field.required) return [field.key, field.type === "slot-list" ? [] : undefined];
+        if (field.type === "number") return [field.key, Number(raw)];
+        if (field.type === "slot-list") return [field.key, raw.split(",").map(item => item.trim()).filter(Boolean)];
+        return [field.key, raw];
       }));
-      await request(`/api/v1/${entity}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+      const payload = Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
+      await request(`/api/v1/${entity}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       setRecord({}); await request<Data>("/api/v1/data").then(next => { setEditor(JSON.stringify(next, null, 2)); });
     } catch (value) { setFormError(value instanceof Error ? value.message : "Record could not be added."); }
   };
-  return <div className="setup-stack"><div className="panel setup"><div className="panel-head"><div><p className="eyebrow">DATA SETUP</p><h2>Academic dataset</h2></div><button onClick={saveData} disabled={busy}>Save dataset</button></div><p className="muted-dark">Add faculty, rooms, sections, courses, time slots, and teaching requirements using simple fields. IDs connect related records.</p><div className="record-form"><label>What do you want to add?<select value={entity} onChange={event => { setEntity(event.target.value as Entity); setRecord({}); setFormError(""); }}>{(["faculty", "rooms", "sections", "courses", "time-slots", "teaching-requirements"] as Entity[]).map(item => <option key={item}>{item}</option>)}</select></label><div className="field-grid">{fields[entity].map(field => <label key={field.key}>{field.label}<input type={field.type ?? "text"} placeholder={field.placeholder} value={record[field.key] ?? ""} onChange={event => setRecord({ ...record, [field.key]: event.target.value })} required={field.required} /></label>)}</div><button onClick={addRecord}>Add {entity.replaceAll("-", " ")}</button>{formError && <p className="field-error" role="alert">{formError}</p>}</div><details className="advanced-editor"><summary>Advanced: edit the complete dataset snapshot</summary><textarea aria-label="Dataset JSON" value={editor} onChange={event => setEditor(event.target.value)} spellCheck={false} /></details>{data && <p className="notice">Current dataset is persisted locally; PostgreSQL is optional and deployment remains deferred.</p>}</div></div>;
+  return <div className="setup-stack"><div className="panel setup"><div className="panel-head"><div><p className="eyebrow">DATA SETUP</p><h2>Academic dataset</h2></div><button onClick={saveData} disabled={busy}>Save dataset</button></div><p className="muted-dark">Add faculty, rooms, sections, courses, time slots, and teaching requirements using simple fields. IDs connect related records.</p><div className="record-form"><label>What do you want to add?<select value={entity} onChange={event => { setEntity(event.target.value as Entity); setRecord({}); setFormError(""); }}>{(["faculty", "rooms", "sections", "courses", "time-slots", "teaching-requirements"] as Entity[]).map(item => <option key={item}>{item}</option>)}</select></label><div className="field-grid">{fields[entity].map(field => <label key={field.key} className={field.type === "checkbox" ? "checkbox-field" : undefined}>{field.type === "checkbox" ? <><input type="checkbox" checked={record[field.key] === "true"} onChange={event => setRecord({ ...record, [field.key]: String(event.target.checked) })} />{field.label}</> : <><span>{field.label}</span><input type={field.type === "slot-list" ? "text" : field.type ?? "text"} placeholder={field.placeholder} value={record[field.key] ?? ""} onChange={event => setRecord({ ...record, [field.key]: event.target.value })} required={field.required} />{field.help && <small>{field.help}</small>}</>}</label>)}</div><button onClick={addRecord}>Add {entity.replaceAll("-", " ")}</button>{formError && <p className="field-error" role="alert">{formError}</p>}</div><details className="advanced-editor"><summary>Advanced: edit the complete dataset snapshot</summary><textarea aria-label="Dataset JSON" value={editor} onChange={event => setEditor(event.target.value)} spellCheck={false} /></details>{data && <p className="notice">Current dataset is persisted locally; PostgreSQL is optional and deployment remains deferred.</p>}</div></div>;
 }
 
 function OptimizationControls({ config, setConfig, disabled }: { config: Config; setConfig: (value: Config) => void; disabled: boolean }) {

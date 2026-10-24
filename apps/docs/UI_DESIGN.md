@@ -16,7 +16,11 @@ shows the latest run and a timetable snapshot.
 
 ### Setup
 Guided record additions for courses, faculty, sections, rooms, time slots, and teaching
-requirements plus a complete JSON editor for advanced changes. API errors are shown next to
+requirements plus a complete JSON editor for advanced changes. Entity-specific constraint
+fields are available in the guided form: faculty can define unavailable/preferred slots and
+daily load limits; rooms and sections can define unavailable slots; courses can define
+duration and consecutive-slot requirements; and teaching requirements can override duration
+and room type. Slot lists use comma-separated time-slot IDs. API errors are shown next to
 the action and empty data is explicit.
 
 ### Timetable
