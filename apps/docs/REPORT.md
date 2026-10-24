@@ -45,7 +45,7 @@ application in `apps/api`, which validates Pydantic datasets, runs the scheduler
 run snapshots through the local SQLite/PostgreSQL-compatible adapter, and exposes schedule,
 metrics, analytics, and CSV endpoints. The UI includes guided record additions, an advanced
 JSON editor, configurable GA controls, schedule filters, API-backed analytics, and a
-plain-language overview with Smart Scheduling and Ready/Running status indicators.
+plain-language Smart Scheduling overview with clear action feedback.
 Production database rollout, authentication, background jobs, and hosted deployment are later-phase work.
 
 ## 9. Project journey
@@ -58,11 +58,11 @@ Production database rollout, authentication, background jobs, and hosted deploym
 | GA | Selection, crossover, mutation, elitism, bounded repair | Required session identity and reproducibility tests pass | Tune larger datasets |
 | API | Validation, CRUD, runs, analytics, schedule, CSV | 15 backend tests pass | Add auth/rate limits only if required |
 | UI | Guided record additions, JSON editor, generation controls, filtered schedule, analytics, and async states | Next.js production build and Vitest suite pass | Add browser-level tests if needed |
-| Evaluation | Five-seed comparison on documented sample | Both methods feasible 5/5; GA mean soft penalty 1.2; baseline 1.0 | Repeat on larger real dataset |
+| Evaluation | Five-seed comparison on documented sample | Baseline feasible 5/5; GA requires further tuning on the larger sample | Improve search quality on larger datasets |
 
 ## 10. Experimental setup
 Hardware/OS: Windows development environment
-Dataset size: 1 faculty, 2 rooms, 1 section, 1 course, 3 time slots, 1 teaching requirement
+Dataset size: 3 faculty, 4 rooms, 3 sections, 4 courses, 15 time slots, 6 teaching requirements
 Population/generations: 40 / 100
 Mutation/crossover: 0.15 / 0.8
 Seeds: 1, 7, 42, 99, 123
@@ -71,15 +71,16 @@ Baseline: One randomized candidate per seed, evaluated with the same constraint 
 ## 11. Results
 | Metric | Baseline | GA |
 |---|---:|---:|
-| Hard violations | mean 0.0 | mean 0.0 |
-| Soft penalty | mean 1.0 | mean 1.2 |
-| Runtime | mean 0 ms | mean 1 ms |
-| Feasible runs / total | 5 / 5 | 5 / 5 |
+| Hard violations | mean 0.0 | mean 4.4 |
+| Soft penalty | mean 7.0 | mean 13.8 |
+| Runtime | mean 61 ms | mean 300 ms |
+| Feasible runs / total | 5 / 5 | 0 / 5 |
 
-The sample is intentionally small, so these results demonstrate reproducibility and
-constraint satisfaction rather than general performance or superiority. On this sample,
-the randomized baseline happened to achieve a lower soft penalty; the GA should not be
-described as better from this experiment alone.
+The expanded sample is more representative of a multi-section timetable, but the current
+bounded GA configuration does not yet consistently find feasible schedules. The greedy
+baseline is feasible on all five seeds, so the GA should not be described as better from
+this experiment alone. These results identify search-budget and repair quality as the
+next algorithm work.
 
 ## 12. Testing
 The backend suite has 15 passing tests covering seeded reproducibility, required-session
@@ -90,8 +91,8 @@ also completes successfully and writes `evaluation-results.json`.
 
 ## 13. Challenges and solutions
 The project keeps algorithm terminology such as GA in technical controls and documentation,
-but uses plain-language Smart Scheduling and Ready/Running status copy in the primary
-overview to reduce user confusion. The UI/API boundary is covered by explicit loading,
+but uses plain-language Smart Scheduling and clear action feedback in the primary overview
+to reduce user confusion. The UI/API boundary is covered by explicit loading,
 error, empty, validation, and run-status states. The scheduler also preserves required
 session identity through crossover, mutation, and repair, with hard violations ranked
 ahead of soft penalties during candidate comparison.
@@ -105,8 +106,9 @@ Manual editing with re-validation, background jobs, spreadsheet import, PDF expo
 ## 16. Conclusion
 Cronos delivers a tested local-first timetable MVP with explicit hard-constraint validation,
 seeded genetic optimization, baseline comparison, persisted run snapshots, a configurable
-web workflow, analytics, filtering, and CSV export. The evidence supports correct behavior
-on the documented sample, not global optimality or production readiness. Deployment,
+web workflow, analytics, filtering, and CSV export. The current expanded sample exposes
+remaining GA search-quality work; the evidence does not support global optimality or
+production readiness. Deployment,
 authentication, background execution, operational monitoring, and larger-dataset validation
 are reserved for the next phase.
 

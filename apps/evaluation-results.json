@@ -1,11 +1,11 @@
 {
   "dataset_counts": {
-    "faculty": 1,
-    "rooms": 2,
-    "sections": 1,
-    "courses": 1,
-    "time_slots": 3,
-    "teaching_requirements": 1
+    "faculty": 3,
+    "rooms": 4,
+    "sections": 3,
+    "courses": 4,
+    "time_slots": 15,
+    "teaching_requirements": 6
   },
   "parameters": {
     "population_size": 40,
@@ -27,22 +27,22 @@
       0
     ],
     "soft_penalty": [
-      1.0,
-      1.0,
-      1.0,
-      1.0,
-      1.0
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      7.0
     ],
     "runtime_ms": [
-      0,
-      0,
-      0,
-      0,
-      0
+      68,
+      62,
+      59,
+      59,
+      57
     ],
     "mean_hard_violations": 0,
-    "mean_soft_penalty": 1.0,
-    "mean_runtime_ms": 0,
+    "mean_soft_penalty": 7.0,
+    "mean_runtime_ms": 61,
     "feasible_runs": 5,
     "total_runs": 5
   },
@@ -55,30 +55,30 @@
       123
     ],
     "hard_violations": [
-      0,
-      0,
-      0,
-      0,
-      0
+      3,
+      6,
+      5,
+      3,
+      5
     ],
     "soft_penalty": [
-      1.0,
-      1.0,
-      1.0,
-      2.0,
-      1.0
+      14.0,
+      11.0,
+      16.0,
+      14.0,
+      14.0
     ],
     "runtime_ms": [
-      1,
-      1,
-      1,
-      1,
-      1
+      279,
+      284,
+      282,
+      298,
+      357
     ],
-    "mean_hard_violations": 0,
-    "mean_soft_penalty": 1.2,
-    "mean_runtime_ms": 1,
-    "feasible_runs": 5,
+    "mean_hard_violations": 4.4,
+    "mean_soft_penalty": 13.8,
+    "mean_runtime_ms": 300,
+    "feasible_runs": 0,
     "total_runs": 5
   }
 }

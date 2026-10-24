@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,9 +10,14 @@ from apps.api.routes import router
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = FastAPI(title="Cronos Timetable Optimizer", version="0.1.0")
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CRONOS_WEB_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

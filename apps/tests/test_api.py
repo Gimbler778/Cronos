@@ -36,11 +36,11 @@ def test_invalid_reference_is_rejected():
 def test_collection_crud_and_run_analytics():
     client = TestClient(app)
     client.post("/api/v1/sample-data")
-    new_room = {"id": "r3", "name": "Room 3", "capacity": 50, "room_type": "lecture"}
+    new_room = {"id": "r5", "name": "Room 5", "capacity": 50, "room_type": "lecture"}
     assert client.post("/api/v1/rooms", json=new_room).status_code == 201
-    assert any(item["id"] == "r3" for item in client.get("/api/v1/rooms").json())
-    assert client.put("/api/v1/rooms/r3", json={"name": "Room 3 Updated"}).status_code == 200
-    assert client.delete("/api/v1/rooms/r3").status_code == 204
+    assert any(item["id"] == "r5" for item in client.get("/api/v1/rooms").json())
+    assert client.put("/api/v1/rooms/r5", json={"name": "Room 5 Updated"}).status_code == 200
+    assert client.delete("/api/v1/rooms/r5").status_code == 204
     run = client.post("/api/v1/optimization-runs", json={"random_seed": 9, "population_size": 8, "max_generations": 4}).json()
     assert client.get("/api/v1/optimization-runs").status_code == 200
     analytics = client.get(f"/api/v1/optimization-runs/{run['id']}/analytics")
@@ -65,7 +65,7 @@ def test_run_schedule_uses_input_snapshot():
     client.put("/api/v1/data", json={"faculty": [], "rooms": [], "sections": [], "courses": [], "time_slots": [], "teaching_requirements": []})
     schedule = client.get(f"/api/v1/optimization-runs/{run['id']}/schedule")
     assert schedule.status_code == 200
-    assert len(schedule.json()["sessions"]) == 2
+    assert len(schedule.json()["sessions"]) == 13
 
 
 def test_export_includes_labels_and_respects_filters():

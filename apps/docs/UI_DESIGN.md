@@ -10,9 +10,9 @@ Avoid excessive gradients and glass effects.
 
 ## Screens
 ### Dashboard
-The overview uses a Smart Scheduling hero, Ready/Running status indicator, configured
-counts for sections, faculty, rooms, and teaching requirements, plus actions for validation
-and timetable generation. It also shows the latest run and a timetable snapshot.
+The overview uses a Smart Scheduling hero, configured counts for sections, faculty, rooms,
+and teaching requirements, plus actions for validation and timetable generation. It also
+shows the latest run and a timetable snapshot.
 
 ### Setup
 Guided record additions for courses, faculty, sections, rooms, time slots, and teaching
@@ -25,7 +25,7 @@ Custom React grid. Display days and periods; each session shows course, faculty 
 ### Optimization
 Controls for GA parameters; validate-before-run; run status, generation, runtime, hard
 violations, soft penalty, and diagnostics. Technical GA terminology remains in advanced
-controls and analytics, while the primary overview uses plain-language status copy.
+controls and analytics, while the primary overview uses plain-language feedback copy.
 
 ### Analytics
 Custom API-backed bars for fitness by generation and resource distributions by slot, room,

@@ -37,8 +37,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. The Smart Scheduling dashboard loads the documented sample
-dataset, validates it, runs a seeded optimization, previews the schedule, shows Ready/Running
-status, and exports CSV.
+dataset, validates it, runs a seeded optimization, previews the schedule, shows action
+feedback, and exports CSV.
 
 ## Validate the project
 
@@ -53,6 +53,18 @@ npm run evaluate
 
 The current automated checks include 15 backend tests, 3 frontend tests, a production build,
 and the recorded multi-seed evaluation.
+
+## Deploy to Vercel
+
+Vercel can host the Next.js frontend from `apps\web`. Set the Vercel project root to
+`apps\web`, use the default Next.js build settings, and define
+`NEXT_PUBLIC_API_BASE_URL` as the public URL of the separately deployed FastAPI API.
+
+The API should run on a service that supports a persistent Python process and must use a
+hosted PostgreSQL database by setting `DATABASE_URL`; SQLite is suitable only for local
+development. Set `CRONOS_WEB_ORIGINS` on the API to the Vercel deployment URL, for example
+`https://cronos.example.com`. Docker is optional for this split deployment and is not
+required by Vercel.
 
 ## Project scope
 

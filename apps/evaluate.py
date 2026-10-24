@@ -4,23 +4,9 @@ import json
 import statistics
 from pathlib import Path
 
-from apps.api.domain import Course, Dataset, Faculty, Room, Section, TeachingRequirement, TimeSlot
+from apps.api.domain import Dataset
+from apps.api.sample_data import sample_dataset
 from apps.api.scheduler import greedy_baseline, optimize
-
-
-def sample_dataset() -> Dataset:
-    return Dataset(
-        faculty=[Faculty(id="f1", name="Dr. Ada Lovelace", department="CS", preferred_slots={"mon-1"})],
-        rooms=[Room(id="r1", name="Lab 1", capacity=40, room_type="lab"), Room(id="r2", name="Room 2", capacity=40, room_type="lecture")],
-        sections=[Section(id="s1", name="BSc CS A", size=30, department="CS", semester="1")],
-        courses=[Course(id="c1", code="CS101", name="Programming", required_room_type="lab", sessions_per_week=2)],
-        time_slots=[
-            TimeSlot(id="mon-1", day="Monday", period=1, start_time="09:00", end_time="10:00"),
-            TimeSlot(id="mon-2", day="Monday", period=2, start_time="10:00", end_time="11:00"),
-            TimeSlot(id="tue-1", day="Tuesday", period=1, start_time="09:00", end_time="10:00"),
-        ],
-        teaching_requirements=[TeachingRequirement(id="tr1", course_id="c1", section_id="s1", faculty_id="f1", required_sessions=2)],
-    )
 
 
 def evaluate(seeds: list[int]) -> dict:

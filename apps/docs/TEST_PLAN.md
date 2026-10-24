@@ -34,7 +34,7 @@ Test valid/invalid requests, missing resources, parameter bounds, run status/met
 The current automated suite has 3 tests covering schedule filtering. The implemented UI
 also provides guided record validation, configurable controls, loading/error/empty states,
 section/faculty/room filters, API-backed metric/resource displays, CSV export, keyboard
-focus styles, Smart Scheduling overview copy, Ready/Running status indicators, and
+focus styles, Smart Scheduling overview copy, status feedback, and
 reduced-motion CSS behavior. Browser-level tests remain optional follow-up coverage.
 
 ## Evaluation
