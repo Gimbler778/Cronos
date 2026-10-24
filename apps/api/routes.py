@@ -248,6 +248,7 @@ def create_run(request: OptimizationRequest) -> dict:
         "parameters": request.model_dump(),
         "hard_violations": result.candidate.hard_violations if result.candidate else None,
         "soft_penalty": result.candidate.soft_penalty if result.candidate else None,
+        "violations": result.candidate.violations if result.candidate else [],
         "runtime_ms": result.runtime_ms,
         "generations": result.generations,
         "diagnostics": result.diagnostics,
