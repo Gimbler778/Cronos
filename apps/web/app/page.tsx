@@ -6,12 +6,20 @@ import { filterSchedule } from "./schedule";
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 type View = "overview" | "setup" | "section" | "faculty" | "room" | "analytics";
 type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "teaching-requirements";
-type Run = { id: string; status: string; hard_violations: number | null; soft_penalty: number | null; runtime_ms: number; generations: number; diagnostics: string[] };
+type Violation = { code: string; entity_id?: string; slot?: string };
+type Run = { id: string; status: string; hard_violations: number | null; soft_penalty: number | null; runtime_ms: number; generations: number; diagnostics: string[]; violations?: Violation[] };
 type Data = { faculty: Record<string, unknown>[]; rooms: Record<string, unknown>[]; sections: Record<string, unknown>[]; courses: Record<string, unknown>[]; time_slots: Record<string, unknown>[]; teaching_requirements: Record<string, unknown>[] };
 type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
 type Point = { generation: number; hard_violations: number; soft_penalty: number };
 type Analytics = { sessions_by_slot: Record<string, number>; sessions_by_room: Record<string, number>; sessions_by_section: Record<string, number> };
 type Config = { population_size: number; max_generations: number; crossover_probability: number; mutation_probability: number; tournament_size: number; elite_count: number; random_seed: number };
+
+const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const sortDays = (days: string[]) => [...days].sort((left, right) => {
+  const leftIndex = dayOrder.indexOf(left);
+  const rightIndex = dayOrder.indexOf(right);
+  return (leftIndex === -1 ? dayOrder.length : leftIndex) - (rightIndex === -1 ? dayOrder.length : rightIndex) || left.localeCompare(right);
+});
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, init);
@@ -97,7 +105,7 @@ export default function Home() {
     </aside>
     <section className="content"><header><div className="header-title"><button className="mobile-menu" type="button" aria-label={sidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><span aria-hidden="true">☰</span></button><div><p className="eyebrow">WORKSPACE / {panel.toUpperCase()}</p><h1>Timetable command center</h1></div></div><button className="outline" onClick={loadSample} disabled={busy}>Reload sample</button></header>
       {error && <div className="error" role="alert"><strong>Action failed.</strong> {error}</div>}
-      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} busy={busy} data={data} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div><p className="eyebrow">GENETIC OPTIMIZER</p><h2>Build a schedule<br /><em>that works.</em></h2><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable →</button></div></div><div className="orb" aria-hidden="true"><div className="orb-inner">GA<br /><small>{busy ? "WORKING" : "READY"}</small></div></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
+      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} busy={busy} data={data} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} run={run} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div><p className="eyebrow">SMART SCHEDULING</p><h2>Build a schedule<br /><em>that works.</em></h2><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable →</button></div></div><div className="orb" aria-hidden="true"><div className="orb-inner">{busy ? "RUNNING" : "READY"}<br /><small>STATUS</small></div></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
     </section>
   </main>;
 }
@@ -168,7 +176,11 @@ function OptimizationControls({ config, setConfig, disabled }: { config: Config;
 }
 
 function RunPanel({ run, history }: { run: Run | null; history: Point[] }) {
-  return <div className="panel"><div className="panel-head"><h3>Latest run</h3>{run && <span className={`badge ${run.status}`}>{run.status}</span>}</div>{run ? <div className="metrics"><Metric label="Hard violations" value={run.hard_violations ?? "—"} /><Metric label="Soft penalty" value={run.soft_penalty ?? "—"} /><Metric label="Generations" value={run.generations} /><Metric label="Runtime" value={`${run.runtime_ms} ms`} /></div> : <p className="empty">No optimization run yet. Generate a timetable to see metrics.</p>}{run?.diagnostics.length ? <p className="diagnostics">{run.diagnostics.join(" ")}</p> : null}{history.length > 0 && <div className="schedule">{history.slice(-8).map(point => <div className="schedule-row" key={point.generation}><span>Gen {point.generation}</span><span>{point.hard_violations} hard</span><span>{point.soft_penalty.toFixed(2)} soft</span></div>)}</div>}</div>;
+  return <div className="panel"><div className="panel-head"><h3>Latest run</h3>{run && <span className={`badge ${run.status}`}>{run.status}</span>}</div>{run ? <div className="metrics"><Metric label="Hard violations" value={run.hard_violations ?? "—"} /><Metric label="Soft penalty" value={run.soft_penalty ?? "—"} /><Metric label="Generations" value={run.generations} /><Metric label="Runtime" value={`${run.runtime_ms} ms`} /></div> : <p className="empty">No optimization run yet. Generate a timetable to see metrics.</p>}{run?.violations?.length ? <ViolationList violations={run.violations} /> : null}{run?.diagnostics.length ? <p className="diagnostics">{run.diagnostics.join(" ")}</p> : null}{history.length > 0 && <div className="schedule">{history.slice(-8).map(point => <div className="schedule-row" key={point.generation}><span>Gen {point.generation}</span><span>{point.hard_violations} hard</span><span>{point.soft_penalty.toFixed(2)} soft</span></div>)}</div>}</div>;
+}
+
+function ViolationList({ violations }: { violations: Violation[] }) {
+  return <div className="violations"><strong>Where conflicts occur</strong>{violations.slice(0, 12).map((violation, index) => <div className="violation-row" key={`${violation.code}-${violation.entity_id ?? ""}-${violation.slot ?? ""}-${index}`}><b>{violation.code}</b><span>{violation.entity_id ?? "—"}{violation.slot ? ` · ${violation.slot}` : ""}</span></div>)}{violations.length > 12 && <small>Showing 12 of {violations.length} violations.</small>}</div>;
 }
 
 function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { schedule: Session[]; run: Run | null; filter: string; setFilter: (value: string) => void; panel: View; setPanel: (value: View) => void }) {
@@ -176,7 +188,7 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
  const [roomFilter, setRoomFilter] = useState("All rooms");
  const [sectionFilter, setSectionFilter] = useState("All sections");
  const [facultyFilter, setFacultyFilter] = useState("All faculty");
- const days = [...new Set(schedule.map(item => item.slot.day))];
+ const days = sortDays([...new Set(schedule.map(item => item.slot.day))]);
  const periods = [...new Set(schedule.map(item => item.slot.period))].sort((a, b) => a - b);
  const rooms = [...new Set(schedule.map(item => item.room.name))];
  const sections = [...new Map(schedule.map(item => [item.section_id, item.section?.name ?? item.section_id] as [string, string])).entries()];
@@ -221,7 +233,7 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
 }
 
 function TimetableSummary({ schedule, run, openTimetable }: { schedule: Session[]; run: Run | null; openTimetable: () => void }) {
- const days = [...new Set(schedule.map(item => item.slot.day))];
+ const days = sortDays([...new Set(schedule.map(item => item.slot.day))]);
  const rooms = [...new Set(schedule.map(item => item.room.name))];
  const sections = [...new Set(schedule.map(item => item.section_id))];
  return <div className="panel timetable-summary">
@@ -230,8 +242,8 @@ function TimetableSummary({ schedule, run, openTimetable }: { schedule: Session[
  </div>;
 }
 
-function AnalyticsPanel({ analytics, history }: { analytics: Analytics | null; history: Point[] }) {
-  return <div className="analytics-grid"><div className="panel"><h3>Fitness progression</h3>{history.length ? history.map(point => <div className="bar-row" key={point.generation}><span>G{point.generation}</span><div><i style={{ width: `${Math.min(100, point.hard_violations * 20 + point.soft_penalty)}%` }} /></div><b>{point.hard_violations} / {point.soft_penalty.toFixed(1)}</b></div>) : <p className="empty">Generate a timetable to see metrics.</p>}</div><div className="panel"><h3>Resource distribution</h3>{analytics ? <><Distribution title="By slot" values={analytics.sessions_by_slot} /><Distribution title="By room" values={analytics.sessions_by_room} /><Distribution title="By section" values={analytics.sessions_by_section} /></> : <p className="empty">Run analytics will appear here after generation.</p>}</div></div>;
+function AnalyticsPanel({ analytics, history, run }: { analytics: Analytics | null; history: Point[]; run: Run | null }) {
+  return <div className="analytics-grid"><div className="panel"><h3>Fitness progression</h3>{history.length ? history.map(point => <div className="bar-row" key={point.generation}><span>G{point.generation}</span><div><i style={{ width: `${Math.min(100, point.hard_violations * 20 + point.soft_penalty)}%` }} /></div><b>{point.hard_violations} / {point.soft_penalty.toFixed(1)}</b></div>) : <p className="empty">Generate a timetable to see metrics.</p>}{run?.violations?.length ? <ViolationList violations={run.violations} /> : null}</div><div className="panel"><h3>Resource distribution</h3>{analytics ? <><Distribution title="By slot" values={analytics.sessions_by_slot} /><Distribution title="By room" values={analytics.sessions_by_room} /><Distribution title="By section" values={analytics.sessions_by_section} /></> : <p className="empty">Run analytics will appear here after generation.</p>}</div></div>;
 }
 
 function Distribution({ title, values }: { title: string; values: Record<string, number> }) { return <div className="distribution"><strong>{title}</strong>{Object.keys(values).length ? Object.entries(values).map(([key, value]) => <div key={key}><span>{key}</span><b>{value}</b></div>) : <p className="empty">No sessions</p>}</div>; }
