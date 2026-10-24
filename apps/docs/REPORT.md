@@ -44,7 +44,8 @@ The browser uses the Next.js dashboard in `apps/web`. It calls the versioned Fas
 application in `apps/api`, which validates Pydantic datasets, runs the scheduler, stores
 run snapshots through the local SQLite/PostgreSQL-compatible adapter, and exposes schedule,
 metrics, analytics, and CSV endpoints. The UI includes guided record additions, an advanced
-JSON editor, configurable GA controls, schedule filters, and API-backed analytics.
+JSON editor, configurable GA controls, schedule filters, API-backed analytics, and a
+plain-language overview with Smart Scheduling and Ready/Running status indicators.
 Production database rollout, authentication, background jobs, and hosted deployment are later-phase work.
 
 ## 9. Project journey
@@ -52,10 +53,10 @@ Production database rollout, authentication, background jobs, and hosted deploym
 |---|---|---|---|
 | Definition | Academic entities, hard/soft constraints, sample dataset | `apps/api/domain.py`, sample endpoint | Confirm institutional data requirements |
 | Data model | Pydantic dataset and durable storage adapter | SQLite fallback; optional PostgreSQL; Alembic migration applies locally | Normalize repositories further |
-| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 9 tests | Add more malformed-slot fixtures |
+| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 15 tests | Add more malformed-slot fixtures |
 | Baseline | Seeded randomized candidate and greedy baseline | `apps/evaluate.py`; backend tests | Tune larger datasets |
 | GA | Selection, crossover, mutation, elitism, bounded repair | Required session identity and reproducibility tests pass | Tune larger datasets |
-| API | Validation, CRUD, runs, analytics, schedule, CSV | 9 backend tests pass | Add auth/rate limits only if required |
+| API | Validation, CRUD, runs, analytics, schedule, CSV | 15 backend tests pass | Add auth/rate limits only if required |
 | UI | Guided record additions, JSON editor, generation controls, filtered schedule, analytics, and async states | Next.js production build and Vitest suite pass | Add browser-level tests if needed |
 | Evaluation | Five-seed comparison on documented sample | Both methods feasible 5/5; GA mean soft penalty 1.2; baseline 1.0 | Repeat on larger real dataset |
 
@@ -81,14 +82,19 @@ the randomized baseline happened to achieve a lower soft penalty; the GA should 
 described as better from this experiment alone.
 
 ## 12. Testing
-The backend suite has 13 passing tests covering seeded reproducibility, required-session
+The backend suite has 15 passing tests covering seeded reproducibility, required-session
 preservation, hard constraints, API flow, CRUD, analytics, export, invalid references,
 baseline bounds, duplicate slot positions, and run snapshot isolation. The frontend suite
-has 2 passing schedule-filter tests. The Next.js production build passes. The evaluator
+has 3 passing schedule-filter tests. The Next.js production build passes. The evaluator
 also completes successfully and writes `evaluation-results.json`.
 
 ## 13. Challenges and solutions
-Document real issues such as lab-block representation, preserving sessions during crossover, constraint trade-offs, convergence, infeasible input, or UI/API alignment. For each, state the observed issue, fix, and evidence.
+The project keeps algorithm terminology such as GA in technical controls and documentation,
+but uses plain-language Smart Scheduling and Ready/Running status copy in the primary
+overview to reduce user confusion. The UI/API boundary is covered by explicit loading,
+error, empty, validation, and run-status states. The scheduler also preserves required
+session identity through crossover, mutation, and repair, with hard violations ranked
+ahead of soft penalties during candidate comparison.
 
 ## 14. Limitations
 A GA does not guarantee global optimality. Quality depends on encoding, parameters, data, and weights. Some datasets may be infeasible. Soft weights encode design choices.

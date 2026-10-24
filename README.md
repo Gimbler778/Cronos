@@ -36,8 +36,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The dashboard loads the documented sample dataset,
-validates it, runs a seeded optimization, previews the schedule, and exports CSV.
+Open `http://localhost:3000`. The Smart Scheduling dashboard loads the documented sample
+dataset, validates it, runs a seeded optimization, previews the schedule, shows Ready/Running
+status, and exports CSV.
 
 ## Validate the project
 
@@ -49,6 +50,9 @@ npm --prefix apps/web test -- --run
 npm run build:web
 npm run evaluate
 ```
+
+The current automated checks include 15 backend tests, 3 frontend tests, a production build,
+and the recorded multi-seed evaluation.
 
 ## Project scope
 

@@ -53,7 +53,7 @@ From repository root:
 cd apps\web
 npx create-next-app@latest . --typescript --tailwind --eslint --app
 ```
-Initialize shadcn/ui using its official current instructions. The current UI uses API-backed custom visualizations and CSS motion with reduced-motion support;
+The current UI uses API-backed custom visualizations and CSS motion with reduced-motion support;
 no chart or animation dependency is required.
 Typical URL: `http://localhost:3000`.
 
@@ -64,8 +64,9 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 Do not put secrets in public environment variables.
 
 ## Tests
-Backend: `pytest`
-Frontend: configure a test script, then run `npm run test`.
+Backend: `python -m pytest apps\tests -q`
+Frontend: `npm --prefix apps\web test -- --run`
+Production build: `npm run build:web`
 Optional E2E: `npx playwright test`.
 
 ## Suggested implementation order

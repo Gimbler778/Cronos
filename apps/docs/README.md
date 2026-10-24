@@ -8,7 +8,7 @@ Cronos is a local-first college timetable optimizer using a Genetic Algorithm (G
 - Backend: Python, FastAPI, Pydantic
 - Optimization: custom Genetic Algorithm
 - Database: PostgreSQL/Neon when `DATABASE_URL` is configured, SQLite fallback for local development
-- Tests: pytest backend; frontend build validation
+- Tests: 15 pytest backend tests; 3 Vitest frontend tests; production build validation
 - Packaging/deployment: intentionally deferred to a later phase
 
 ## Goals
@@ -17,8 +17,9 @@ Generate a weekly timetable that avoids faculty, room, and section clashes; resp
 ## MVP
 Academic data validation, guided record entry plus JSON editing, configurable GA generation,
 resource collection endpoints, schedule filtering, run metrics, persisted local state,
-API-backed analytics, accessible loading/error/empty states, optional PostgreSQL/Neon storage,
-and CSV export. Production deployment and operational hardening remain a later phase.
+API-backed analytics, a plain-language Smart Scheduling overview with Ready/Running status,
+accessible loading/error/empty states, optional PostgreSQL/Neon storage, and CSV export.
+Production deployment and operational hardening remain a later phase.
 No paid APIs or GPU required.
 
 ## Repository

@@ -31,9 +31,10 @@ Verify validation, constraint checking, GA correctness, API contracts, UI behavi
 Test valid/invalid requests, missing resources, parameter bounds, run status/metrics, CRUD, analytics, CSV headers, health endpoint, and run snapshot isolation. Current automated API coverage passes.
 
 ## Frontend tests
-The current automated suite covers schedule filtering. The implemented UI also provides
-guided record validation, configurable controls, loading/error/empty states, section/faculty/
-room filters, API-backed metric/resource displays, CSV export, keyboard focus styles, and
+The current automated suite has 3 tests covering schedule filtering. The implemented UI
+also provides guided record validation, configurable controls, loading/error/empty states,
+section/faculty/room filters, API-backed metric/resource displays, CSV export, keyboard
+focus styles, Smart Scheduling overview copy, Ready/Running status indicators, and
 reduced-motion CSS behavior. Browser-level tests remain optional follow-up coverage.
 
 ## Evaluation
