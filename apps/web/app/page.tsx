@@ -113,7 +113,7 @@ export default function Home() {
 
   return <main className={`shell ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>
     <aside>
-      <div className="brand">CRONOS</div><p className="muted">Academic scheduling studio</p><nav aria-label="Primary navigation">{nav.map(([value, label]) => <button className={panel === value ? "active" : ""} key={value} onClick={() => { setPanel(value); if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false); }}>{label}</button>)}</nav><div className="side-note">Local-first<br /><span>Deployment is reserved for a later phase.</span></div>
+      <div className="brand">CRONOS</div><p className="muted">Academic scheduling studio</p><nav aria-label="Primary navigation">{nav.map(([value, label]) => <button className={panel === value ? "active" : ""} key={value} onClick={() => { setPanel(value); if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false); }}>{label}</button>)}</nav><div className="side-card"><strong>Build with confidence</strong><span>Keep your schedule clear, balanced, and ready to run.</span></div>
     </aside>
     <section className="content"><header><div className="header-title"><button className="mobile-menu" type="button" aria-label={sidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><span aria-hidden="true">☰</span></button><div><p className="eyebrow">WORKSPACE / {panel.toUpperCase()}</p><h1>Timetable command center</h1></div></div></header>
       {error && <div className="error" role="alert"><strong>Action failed.</strong> {error}</div>}
