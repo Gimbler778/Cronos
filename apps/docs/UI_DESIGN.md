@@ -20,7 +20,7 @@ requirements plus a complete JSON editor for advanced changes. API errors are sh
 the action and empty data is explicit.
 
 ### Timetable
-Custom React grid. Display days and periods; each session shows course, faculty abbreviation, and room. Filters by section/faculty/room/day. Clicking a session opens details. Make conflicts clear without relying on color alone.
+Custom React grid. Display days and periods; each session shows course, faculty abbreviation, and room. Filters by section/faculty/room/day. Session times are fully visible on hover and keyboard focus. Make conflicts clear without relying on color alone.
 
 ### Optimization
 Controls for GA parameters; validate-before-run; run status, generation, runtime, hard

@@ -9,7 +9,7 @@ type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "tea
 type Violation = { code: string; entity_id?: string; slot?: string };
 type Run = { id: string; status: string; hard_violations: number | null; soft_penalty: number | null; runtime_ms: number; generations: number; diagnostics: string[]; violations?: Violation[] };
 type Data = { faculty: Record<string, unknown>[]; rooms: Record<string, unknown>[]; sections: Record<string, unknown>[]; courses: Record<string, unknown>[]; time_slots: Record<string, unknown>[]; teaching_requirements: Record<string, unknown>[] };
-type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
+type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
 type Point = { generation: number; hard_violations: number; soft_penalty: number };
 type Analytics = { sessions_by_slot: Record<string, number>; sessions_by_room: Record<string, number>; sessions_by_section: Record<string, number> };
 type Config = { population_size: number; max_generations: number; crossover_probability: number; mutation_probability: number; tournament_size: number; elite_count: number; random_seed: number };
@@ -101,11 +101,11 @@ export default function Home() {
 
   return <main className={`shell ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>
     <aside>
-      <div className="brand">CRONOS<span>.</span></div><p className="muted">Academic scheduling studio</p><nav aria-label="Primary navigation">{nav.map(([value, label]) => <button className={panel === value ? "active" : ""} key={value} onClick={() => { setPanel(value); if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false); }}>{label}</button>)}</nav><div className="side-note">Local-first<br /><span>Deployment is reserved for a later phase.</span></div>
+      <div className="brand">CRONOS</div><p className="muted">Academic scheduling studio</p><nav aria-label="Primary navigation">{nav.map(([value, label]) => <button className={panel === value ? "active" : ""} key={value} onClick={() => { setPanel(value); if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false); }}>{label}</button>)}</nav><div className="side-note">Local-first<br /><span>Deployment is reserved for a later phase.</span></div>
     </aside>
     <section className="content"><header><div className="header-title"><button className="mobile-menu" type="button" aria-label={sidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><span aria-hidden="true">☰</span></button><div><p className="eyebrow">WORKSPACE / {panel.toUpperCase()}</p><h1>Timetable command center</h1></div></div><button className="outline" onClick={loadSample} disabled={busy}>Reload sample</button></header>
       {error && <div className="error" role="alert"><strong>Action failed.</strong> {error}</div>}
-      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} busy={busy} data={data} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} run={run} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div><p className="eyebrow">SMART SCHEDULING</p><h2>Build a schedule<br /><em>that works.</em></h2><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable →</button></div></div><div className="orb" aria-hidden="true"><div className="orb-inner">{busy ? "RUNNING" : "READY"}<br /><small>STATUS</small></div></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
+      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} busy={busy} data={data} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} run={run} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div className="hero-title"><p className="eyebrow">SMART SCHEDULING</p><h2>Build a schedule<br /><em>that works.</em></h2></div><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable <span aria-hidden="true">→</span></button></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
     </section>
   </main>;
 }
@@ -183,6 +183,27 @@ function ViolationList({ violations }: { violations: Violation[] }) {
   return <div className="violations"><strong>Where conflicts occur</strong>{violations.slice(0, 12).map((violation, index) => <div className="violation-row" key={`${violation.code}-${violation.entity_id ?? ""}-${violation.slot ?? ""}-${index}`}><b>{violation.code}</b><span>{violation.entity_id ?? "—"}{violation.slot ? ` · ${violation.slot}` : ""}</span></div>)}{violations.length > 12 && <small>Showing 12 of {violations.length} violations.</small>}</div>;
 }
 
+function sessionPlacement(item: Session, dayItems: Session[]) {
+ const duration = item.course?.duration ?? 1;
+ const start = item.slot.period;
+ const end = start + duration;
+ const cluster = dayItems.filter(other => {
+   const otherEnd = other.slot.period + (other.course?.duration ?? 1);
+   return other.slot.period < end && start < otherEnd;
+ });
+ const ordered = [...cluster].sort((left, right) => left.slot.period - right.slot.period || left.session_id.localeCompare(right.session_id));
+ const lanes: number[] = [];
+ const laneById = new Map<string, number>();
+ ordered.forEach(session => {
+   const sessionStart = session.slot.period;
+   const lane = lanes.findIndex(lastEnd => lastEnd <= sessionStart);
+   const laneIndex = lane === -1 ? lanes.length : lane;
+   lanes[laneIndex] = sessionStart + (session.course?.duration ?? 1);
+   laneById.set(session.session_id, laneIndex);
+ });
+ return { duration, lane: laneById.get(item.session_id) ?? 0, laneCount: Math.max(lanes.length, 1) };
+}
+
 function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { schedule: Session[]; run: Run | null; filter: string; setFilter: (value: string) => void; panel: View; setPanel: (value: View) => void }) {
  const [dayFilter, setDayFilter] = useState("All days");
  const [roomFilter, setRoomFilter] = useState("All rooms");
@@ -193,6 +214,8 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
  const rooms = [...new Set(schedule.map(item => item.room.name))];
  const sections = [...new Map(schedule.map(item => [item.section_id, item.section?.name ?? item.section_id] as [string, string])).entries()];
  const faculty = [...new Map(schedule.map(item => [item.faculty_id, item.faculty?.name ?? item.faculty_id] as [string, string])).entries()];
+ const courses = [...new Map(schedule.map(item => [item.course_id, item.course ? `${item.course.code} · ${item.course.name}` : item.course_id] as [string, string])).entries()];
+ const roomLabels = [...new Map(schedule.map(item => [item.room.id, item.room.name] as [string, string])).entries()];
  const visibleSchedule = schedule.filter(item =>
    (dayFilter === "All days" || item.slot.day === dayFilter) &&
    (roomFilter === "All rooms" || item.room.name === roomFilter) &&
@@ -211,7 +234,6 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
  const exportHref = run ? `${API}/api/v1/optimization-runs/${run.id}/export.csv${exportQuery ? `?${exportQuery}` : ""}` : "";
  return <div className="panel timetable-panel">
    <div className="panel-head"><div><p className="eyebrow">WEEK VIEW</p><h3>Timetable</h3></div>{schedule.length > 0 && run && <div className="export-actions"><a href={exportHref} title="Download the sessions currently shown, with readable labels">Export {hasFilters ? "filtered " : ""}CSV</a><small>{visibleSchedule.length} session{visibleSchedule.length === 1 ? "" : "s"} · {hasFilters ? "filtered view" : "full timetable"}</small></div>}</div>
-   <div className="filters view-tabs">{(["section", "faculty", "room"] as View[]).map(value => <button className={panel === value ? "" : "secondary"} key={value} onClick={() => setPanel(value)}>{value === "section" ? "All sessions" : `By ${value}`}</button>)}</div>
    <div className="timetable-toolbar">
      <label className="search-field"><span>Search</span><input id="schedule-filter" placeholder="Course, room, section, faculty..." value={filter} onChange={event => setFilter(event.target.value)} /></label>
      <label><span>Day</span><select value={dayFilter} onChange={event => setDayFilter(event.target.value)}><option>All days</option>{days.map(day => <option key={day}>{day}</option>)}</select></label>
@@ -221,14 +243,13 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
      <button className="secondary clear-button" onClick={clearFilters}>Clear</button>
    </div>
    <div className="timetable-legend" aria-label="Timetable labels">
-     <strong>Label key</strong>
-     <span><b>P1</b> = Period 1 (start time shown below it).</span>
-     <span><b>c1</b> = Course (code and name shown on the card).</span>
-     <span><b>s1</b> = Section (student group).</span>
-     <span><b>f1</b> = Faculty (teaching staff member).</span>
-     <span><b>r1</b> = Room (classroom or lab).</span>
+     <strong>Reference labels</strong>
+     <div className="label-group"><b>Courses</b>{courses.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
+     <div className="label-group"><b>Faculty</b>{faculty.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
+     <div className="label-group"><b>Rooms</b>{roomLabels.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
+     <div className="label-group"><b>Sections</b>{sections.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
    </div>
-   {schedule.length === 0 ? <p className="empty">Generate a timetable to see scheduled sessions.</p> : visibleSchedule.length === 0 ? <p className="empty">No sessions match these filters.</p> : <div className="calendar-scroll"><div className="calendar-grid" style={{ "--day-count": Math.max(days.length, 1) } as CSSProperties}><div className="calendar-corner">TIME</div>{days.map(day => <div className="calendar-day" key={day}>{day}</div>)}{periods.map(period => <><div className="calendar-time" key={`time-${period}`}><span>P{period}</span><small>Period {period}</small><small>{schedule.find(item => item.slot.period === period)?.slot.start_time}</small></div>{days.map(day => { const items = visibleSchedule.filter(item => item.slot.day === day && item.slot.period === period); return <div className="calendar-cell" key={`${day}-${period}`}>{items.map(item => <div className="session-card" key={item.session_id}><strong>Course {item.course_id}</strong>{item.course && <span className="session-course">{item.course.code} · {item.course.name}</span>}<span>{item.slot.start_time} – {item.slot.end_time}</span><span>Room {item.room.id} · {item.room.name}</span><small>Section {item.section_id} · {item.section?.name ?? item.section_id}</small><small>Faculty {item.faculty_id} · {item.faculty?.name ?? item.faculty_id}</small></div>)}</div>; })}</>)}</div></div>}
+   {schedule.length === 0 ? <p className="empty">Generate a timetable to see scheduled sessions.</p> : visibleSchedule.length === 0 ? <p className="empty">No sessions match these filters.</p> : <div className="timeline-scroll"><div className="timeline-board" style={{ "--period-count": Math.max(periods.length, 1), "--day-count": Math.max(days.length, 1) } as CSSProperties}><div className="timeline-header"><div className="timeline-corner">TIME</div>{days.map(day => <div className="calendar-day" key={day}>{day}</div>)}</div><div className="timeline-body"><div className="timeline-rail">{periods.map(period => <div className="timeline-time" key={period}><span>P{period}</span><small>Period {period}</small><small>{schedule.find(item => item.slot.period === period)?.slot.start_time}</small></div>)}</div>{days.map(day => { const dayItems = visibleSchedule.filter(item => item.slot.day === day); return <div className="timeline-day" key={day}><div className="timeline-track">{dayItems.map(item => { const placement = sessionPlacement(item, dayItems); const timeLabel = `${item.slot.start_time} – ${item.slot.end_time}`;    return <div className="session-card" key={item.session_id} title={timeLabel} aria-label={`${item.course_id}, ${timeLabel}`} tabIndex={0} style={{ "--session-top": (item.slot.period - 1) * 132, "--session-duration": placement.duration, "--session-lane": placement.lane, "--session-lanes": placement.laneCount } as CSSProperties}><strong>{item.course_id}</strong>{item.course && <span className="session-course">{item.course.code}</span>}<span className="session-time">{timeLabel}</span><span><b>{item.room.id}</b></span><small><b>{item.section_id}</b></small><small><b>{item.faculty_id}</b></small></div>; })}</div></div>; })}</div></div></div>}
  </div>;
 }
 
