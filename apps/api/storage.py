@@ -99,6 +99,9 @@ class Storage:
     def save_dataset(self, dataset: Dataset) -> None:
         self._write("dataset", dataset.model_dump(mode="json"))
 
+    def clear_all(self) -> None:
+        self._execute("DELETE FROM cronos_state")
+
     def save_run(self, run_id: str, record: dict[str, Any]) -> None:
         self._write(f"run:{run_id}", record)
 

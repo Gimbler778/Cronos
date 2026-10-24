@@ -20,6 +20,7 @@ Base prefix: `/api/v1`; JSON; Pydantic validation; consistent errors; never impl
 
 ## Suggested endpoints
 - `GET /health`
+- `GET/PUT/DELETE /api/v1/data` — read, replace, or completely clear the saved dataset and generated timetables
 - `GET/POST /api/v1/faculty`
 - `GET/POST /api/v1/rooms`
 - `GET/POST /api/v1/sections`
@@ -82,3 +83,7 @@ Base prefix: `/api/v1`; JSON; Pydantic validation; consistent errors; never impl
 
 Runs currently execute synchronously for small local datasets. Background jobs, authentication,
 rate limits, and production migration operations are reserved for the deployment phase.
+
+The Data setup page exposes the destructive clear operation behind a confirmation prompt. It
+removes the dataset and all saved optimization runs/timetables; loading sample data remains an
+Overview-only action.

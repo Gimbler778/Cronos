@@ -9,7 +9,7 @@ Cronos is a local-first college timetable optimizer using a Genetic Algorithm (G
 - Optimization: custom Genetic Algorithm
 - Database: PostgreSQL/Neon when `DATABASE_URL` is configured, SQLite fallback for local development
 - Tests: 15 pytest backend tests; 3 Vitest frontend tests; production build validation
-- Packaging/deployment: intentionally deferred to a later phase
+- Packaging/deployment: deployed to Vercel at https://cronos-sc.vercel.app
 
 ## Goals
 Generate a weekly timetable that avoids faculty, room, and section clashes; respects availability, room type/capacity, session counts, and lab blocks; improves preferences and workload balance; and supports timetable views, metrics, and CSV export.
@@ -19,9 +19,9 @@ Academic data validation, guided record entry plus JSON editing, configurable GA
 resource collection endpoints, schedule filtering, run metrics, persisted local state,
 API-backed analytics, a plain-language Smart Scheduling overview with clear action feedback,
 accessible loading/error/empty states, optional PostgreSQL/Neon storage, and CSV export.
-Production deployment and operational hardening remain a later phase. For a Vercel
-deployment, host `apps\web` as the frontend and deploy the FastAPI API separately with
-`DATABASE_URL` pointing to hosted PostgreSQL; SQLite is local-development only.
+The deployed MVP is available at https://cronos-sc.vercel.app. Vercel hosts the frontend
+and FastAPI API together, with `DATABASE_URL` pointing to hosted PostgreSQL; SQLite is
+local-development only.
 No paid APIs or GPU required.
 
 ## Repository

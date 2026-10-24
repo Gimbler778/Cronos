@@ -33,6 +33,23 @@ def test_invalid_reference_is_rejected():
     assert response.json()["detail"]["code"] == "INVALID_INPUT"
 
 
+def test_clear_data_removes_dataset_and_saved_timetable():
+    client = TestClient(app)
+    client.post("/api/v1/sample-data")
+    run = client.post("/api/v1/optimization-runs", json={"random_seed": 42, "population_size": 8, "max_generations": 4}).json()
+    assert client.delete("/api/v1/data").json() == {"cleared": True}
+    assert client.get("/api/v1/data").json() == {
+        "faculty": [],
+        "rooms": [],
+        "sections": [],
+        "courses": [],
+        "time_slots": [],
+        "teaching_requirements": [],
+    }
+    assert client.get(f"/api/v1/optimization-runs/{run['id']}").status_code == 404
+    assert client.get("/api/v1/optimization-runs").json() == []
+
+
 def test_collection_crud_and_run_analytics():
     client = TestClient(app)
     client.post("/api/v1/sample-data")

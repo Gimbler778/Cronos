@@ -104,6 +104,12 @@ def replace_data(value: Dataset) -> dict:
     return {"saved": True, "counts": {key: len(getattr(value, key)) for key in ("faculty", "rooms", "sections", "courses", "time_slots", "teaching_requirements")}}
 
 
+@router.delete("/data")
+def clear_data() -> dict[str, bool]:
+    storage.clear_all()
+    return {"cleared": True}
+
+
 def _collection(name: str, model: type[BaseModel], value: BaseModel | None = None) -> list | BaseModel:
     dataset = _dataset()
     items = list(getattr(dataset, name))

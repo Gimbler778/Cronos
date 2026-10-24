@@ -38,7 +38,12 @@ npm run dev
 
 Open `http://localhost:3000`. The Smart Scheduling dashboard loads the documented sample
 dataset, validates it, runs a seeded optimization, previews the schedule, shows action
-feedback, and exports CSV.
+feedback, and exports CSV. The deployed app is available at
+https://cronos-sc.vercel.app.
+
+On the Overview page, use **Reload sample** to restore the sample dataset. The Data setup
+page includes **Clear data & timetable**, which permanently removes the saved dataset and
+all generated timetables after confirmation.
 
 ## Validate the project
 
@@ -73,9 +78,8 @@ cold starts and multiple serverless instances do not lose application state.
 
 ## Project scope
 
-The current repository targets the local MVP. Production deployment, authentication,
-background jobs, rate limiting, migration rollout, monitoring, and release operations
-are reserved for a later phase.
+The current repository targets the deployed MVP. Authentication, background jobs, rate
+limiting, migration rollout, monitoring, and release operations are reserved for a later phase.
 
 See the documentation in [apps/docs](apps/docs), including the
 [project report](apps/docs/REPORT.md) and [roadmap](apps/docs/ROADMAP.md).
