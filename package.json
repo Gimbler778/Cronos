@@ -1,0 +1,15 @@
+{
+  "name": "cronos",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names api,web --prefix-colors blue,green \"npm run api\" \"npm run web\"",
+    "api": "set PYTHONPATH=.&& python -m uvicorn apps.api.main:app --reload",
+    "web": "npm --prefix apps/web run dev",
+    "build:web": "npm --prefix apps/web run build",
+    "test:api": "set PYTHONPATH=.&& python -m pytest apps/tests -q",
+    "evaluate": "set PYTHONPATH=.&& python apps/evaluate.py"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

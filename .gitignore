@@ -1,0 +1,10 @@
+apps/.env
+apps/.env.*
+!apps/.env.example
+apps/web/.env.local
+apps/web/.env.*.local
+node_modules/
+.next/
+__pycache__/
+.pytest_cache/
+*.db
