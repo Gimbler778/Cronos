@@ -21,3 +21,19 @@ app.include_router(router, prefix="/api/v1")
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/v1/models")
+def list_models() -> dict:
+    """Expose the local model catalogue expected by OpenAI-compatible clients."""
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": "cronos-optimizer",
+                "object": "model",
+                "created": 0,
+                "owned_by": "cronos",
+            }
+        ],
+    }

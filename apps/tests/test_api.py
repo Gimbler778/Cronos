@@ -3,6 +3,12 @@ from fastapi.testclient import TestClient
 from apps.api.main import app
 
 
+def test_models_compatibility_endpoint():
+    response = TestClient(app).get("/v1/models")
+    assert response.status_code == 200
+    assert response.json()["data"][0]["id"] == "cronos-optimizer"
+
+
 def test_sample_api_flow():
     client = TestClient(app)
     assert client.post("/api/v1/sample-data").status_code == 200
@@ -12,7 +18,11 @@ def test_sample_api_flow():
     run_id = response.json()["id"]
     assert client.get(f"/api/v1/optimization-runs/{run_id}/schedule").status_code == 200
     assert client.get(f"/api/v1/optimization-runs/{run_id}/metrics").status_code == 200
-    assert client.get(f"/api/v1/optimization-runs/{run_id}/export.csv").text.startswith("session_id,slot_id,room_id")
+    export = client.get(f"/api/v1/optimization-runs/{run_id}/export.csv")
+    assert export.status_code == 200
+    header = export.text.splitlines()[0]
+    assert header.startswith("session_id,day,period,period_label")
+    assert {"course_name", "section_name", "faculty_name", "room_name"} <= set(header.split(","))
 
 
 def test_invalid_reference_is_rejected():
@@ -56,3 +66,18 @@ def test_run_schedule_uses_input_snapshot():
     schedule = client.get(f"/api/v1/optimization-runs/{run['id']}/schedule")
     assert schedule.status_code == 200
     assert len(schedule.json()["sessions"]) == 2
+
+
+def test_export_includes_labels_and_respects_filters():
+    client = TestClient(app)
+    client.post("/api/v1/sample-data")
+    run = client.post("/api/v1/optimization-runs", json={"random_seed": 42, "population_size": 8, "max_generations": 4}).json()
+    url = f"/api/v1/optimization-runs/{run['id']}/export.csv"
+    full = client.get(url).text.splitlines()
+    monday = client.get(url, params={"day": "Monday"}).text.splitlines()
+    faculty = client.get(url, params={"q": "Ada"}).text.splitlines()
+    assert len(full) > 1
+    assert len(monday) > 1 and len(monday) <= len(full)
+    assert all(line.split(",")[1] == "Monday" for line in monday[1:])
+    assert "Programming" in "\n".join(full)
+    assert len(faculty) > 1 and all("Ada Lovelace" in line for line in faculty[1:])

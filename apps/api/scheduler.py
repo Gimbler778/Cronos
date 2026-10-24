@@ -255,6 +255,8 @@ def optimize(
             soft_penalty(data, sessions, child, weights)
             next_population.append(child)
         population = next_population
+    validate_candidate(data, sessions, best)
+    soft_penalty(data, sessions, best, weights)
     status = "feasible" if best.hard_violations == 0 else "best_effort"
     return RunResult(status, best, completed, int((time.perf_counter() - started) * 1000), history, [] if status == "feasible" else ["No feasible schedule found within the generation limit."])
 

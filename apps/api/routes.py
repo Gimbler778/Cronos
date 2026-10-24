@@ -316,23 +316,33 @@ def get_schedule(run_id: str) -> dict:
     sessions = {item.id: item for item in expand_sessions(run_dataset)}
     slots = {item.id: item for item in run_dataset.time_slots}
     rooms = {item.id: item for item in run_dataset.rooms}
-    return {
-        "run_id": run_id,
-        "status": record["status"],
-        "sessions": [
+    courses = {item.id: item for item in run_dataset.courses}
+    sections = {item.id: item for item in run_dataset.sections}
+    faculty = {item.id: item for item in run_dataset.faculty}
+    rows = []
+    for item in candidate.assignments:
+        session = sessions.get(item.session_id)
+        slot = slots.get(item.slot_id)
+        room = rooms.get(item.room_id)
+        course = courses.get(session.course_id) if session else None
+        section = sections.get(session.section_id) if session else None
+        person = faculty.get(session.faculty_id) if session else None
+        if not (session and slot and room and course and section and person):
+            continue
+        rows.append(
             {
                 **item.__dict__,
-                "course_id": sessions[item.session_id].course_id,
-                "section_id": sessions[item.session_id].section_id,
-                "faculty_id": sessions[item.session_id].faculty_id,
-                "slot": slots[item.slot_id].model_dump(mode="json"),
-                "room": rooms[item.room_id].model_dump(mode="json"),
+                "course_id": session.course_id,
+                "section_id": session.section_id,
+                "faculty_id": session.faculty_id,
+                "slot": slot.model_dump(mode="json"),
+                "room": room.model_dump(mode="json"),
+                "course": course.model_dump(mode="json"),
+                "section": section.model_dump(mode="json"),
+                "faculty": person.model_dump(mode="json"),
             }
-            for item in candidate.assignments
-            if item.session_id in sessions and item.slot_id in slots and item.room_id in rooms
-        ],
-        "violations": candidate.violations,
-    }
+        )
+    return {"run_id": run_id, "status": record["status"], "sessions": rows, "violations": candidate.violations}
 
 
 @router.get("/optimization-runs/{run_id}/analytics")
@@ -355,14 +365,92 @@ def get_analytics(run_id: str) -> dict:
     return {"run_id": run_id, "history": history, "sessions_by_slot": by_slot, "sessions_by_room": by_room, "sessions_by_section": by_section}
 
 
+def _export_matches(row: dict[str, object], filters: dict[str, str]) -> bool:
+    if filters["day"] and row["day"] != filters["day"]:
+        return False
+    for key, labels in (
+        ("room", ("room_id", "room_name")),
+        ("section", ("section_id", "section_name")),
+        ("faculty", ("faculty_id", "faculty_name")),
+    ):
+        if filters[key] and filters[key] not in (str(row[label]) for label in labels):
+            return False
+    if filters["q"]:
+        haystack = " ".join(str(value or "") for value in row.values()).lower()
+        if filters["q"].lower() not in haystack:
+            return False
+    return True
+
+
 @router.get("/optimization-runs/{run_id}/export.csv")
-def export_csv(run_id: str) -> StreamingResponse:
+def export_csv(
+    run_id: str,
+    q: str | None = None,
+    day: str | None = None,
+    room: str | None = None,
+    section: str | None = None,
+    faculty: str | None = None,
+) -> StreamingResponse:
     record = _record(run_id)
+    run_dataset = Dataset.model_validate(record.get("dataset", dataset.model_dump(mode="json")))
+    sessions = {item.id: item for item in expand_sessions(run_dataset)}
+    slots = {item.id: item for item in run_dataset.time_slots}
+    rooms = {item.id: item for item in run_dataset.rooms}
+    courses = {item.id: item for item in run_dataset.courses}
+    sections = {item.id: item for item in run_dataset.sections}
+    faculty_members = {item.id: item for item in run_dataset.faculty}
+    filters = {"q": q or "", "day": day or "", "room": room or "", "section": section or "", "faculty": faculty or ""}
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["session_id", "slot_id", "room_id"])
+    writer.writerow(
+        [
+            "session_id",
+            "day",
+            "period",
+            "period_label",
+            "start_time",
+            "end_time",
+            "course_id",
+            "course_code",
+            "course_name",
+            "section_id",
+            "section_name",
+            "faculty_id",
+            "faculty_name",
+            "room_id",
+            "room_name",
+            "room_type",
+        ]
+    )
     for assignment in record["candidate"].assignments:
-        writer.writerow([assignment.session_id, assignment.slot_id, assignment.room_id])
+        session = sessions.get(assignment.session_id)
+        slot = slots.get(assignment.slot_id)
+        room_item = rooms.get(assignment.room_id)
+        course = courses.get(session.course_id) if session else None
+        section_item = sections.get(session.section_id) if session else None
+        person = faculty_members.get(session.faculty_id) if session else None
+        if not (session and slot and room_item and course and section_item and person):
+            continue
+        row = {
+            "session_id": assignment.session_id,
+            "day": slot.day,
+            "period": slot.period,
+            "period_label": f"P{slot.period}",
+            "start_time": slot.start_time,
+            "end_time": slot.end_time,
+            "course_id": course.id,
+            "course_code": course.code,
+            "course_name": course.name,
+            "section_id": section_item.id,
+            "section_name": section_item.name,
+            "faculty_id": person.id,
+            "faculty_name": person.name,
+            "room_id": room_item.id,
+            "room_name": room_item.name,
+            "room_type": room_item.room_type,
+        }
+        if _export_matches(row, filters):
+            writer.writerow([row[key] for key in row])
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="cronos-{run_id}.csv"'})
 
 
