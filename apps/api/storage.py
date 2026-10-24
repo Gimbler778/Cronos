@@ -80,7 +80,12 @@ class Storage:
 
     def _write(self, key: str, value: Any) -> None:
         placeholder = "%s" if self._postgres else "?"
-        encoded = value if self._postgres else _json(value)
+        if self._postgres:
+            from psycopg.types.json import Jsonb
+
+            encoded = Jsonb(value)
+        else:
+            encoded = _json(value)
         query = (
             f"INSERT INTO cronos_state(key, value, updated_at) VALUES ({placeholder}, {placeholder}, {placeholder}) "
             f"ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at"
