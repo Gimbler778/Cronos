@@ -96,6 +96,9 @@ class Storage:
         value = self._read("dataset")
         return Dataset.model_validate(value) if value else Dataset()
 
+    def dataset_exists(self) -> bool:
+        return self._read("dataset") is not None
+
     def save_dataset(self, dataset: Dataset) -> None:
         self._write("dataset", dataset.model_dump(mode="json"))
 

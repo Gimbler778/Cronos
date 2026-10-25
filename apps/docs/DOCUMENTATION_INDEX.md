@@ -5,6 +5,7 @@
 - `ARCHITECTURE.md`: components and data flow.
 - `ALGORITHM_DESIGN.md`: GA encoding, fitness, operators, evaluation.
 - `DATA_MODEL_AND_API.md`: entities, tables, endpoints, request/response examples.
+- `DATA_PERSISTENCE_FIX.md`: saved dataset loading, first-run seeding, reset, and timetable restoration.
 - `AGENTS.md`: coding-agent and contributor rules.
 - `INSTRUCTIONS.md`: local setup and run guide.
 - `TEST_PLAN.md`: test levels and cases.

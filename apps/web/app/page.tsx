@@ -42,21 +42,57 @@ export default function Home() {
   const [filter, setFilter] = useState("");
   const [editor, setEditor] = useState("");
   const [config, setConfig] = useState<Config>(emptyConfig);
-  const [message, setMessage] = useState("Loading the sample dataset…");
+  const [message, setMessage] = useState("Loading your saved dataset…");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadData() {
+  async function loadData(): Promise<Data> {
     const value = await request<Data>("/api/v1/data");
     setData(value);
     setEditor(JSON.stringify(value, null, 2));
+    return value;
   }
 
   async function loadSample() {
+    if (!window.confirm("Reset to sample data? This will replace the saved dataset and cannot be undone.")) return;
     setBusy(true); setError("");
-    try { await request("/api/v1/sample-data", { method: "POST" }); await loadData(); setMessage("Sample data loaded and ready to validate."); }
+    try { await request("/api/v1/sample-data", { method: "POST" }); await loadData(); setRun(null); setSchedule([]); setHistory([]); setAnalytics(null); setMessage("Sample data loaded and replaced the previous dataset."); }
     catch (value) { const text = value instanceof Error ? value.message : "Could not load sample data."; setError(text); setMessage("The API is unavailable."); }
     finally { setBusy(false); }
+  }
+
+  async function restoreLatestRun() {
+    const runs = await request<Run[]>("/api/v1/optimization-runs");
+    const latest = runs[0];
+    if (!latest) return false;
+    const [scheduleResult, metrics, summary] = await Promise.all([
+      request<{ sessions: Session[] }>(`/api/v1/optimization-runs/${latest.id}/schedule`),
+      request<{ history: Point[] }>(`/api/v1/optimization-runs/${latest.id}/metrics`),
+      request<Analytics>(`/api/v1/optimization-runs/${latest.id}/analytics`),
+    ]);
+    setRun(latest); setSchedule(scheduleResult.sessions); setHistory(metrics.history); setAnalytics(summary);
+    return true;
+  }
+
+  async function initialize() {
+    setBusy(true); setError("");
+    try {
+      const status = await request<{ initialized: boolean }>("/api/v1/data/status");
+      if (!status.initialized) {
+        await request("/api/v1/sample-data", { method: "POST" });
+      }
+      await loadData();
+      try {
+        if (await restoreLatestRun()) setMessage("Saved dataset loaded and latest timetable restored.");
+        else setMessage(status.initialized ? "Saved dataset loaded and ready to validate." : "Sample data loaded and ready to validate.");
+      } catch (value) {
+        setError(value instanceof Error ? value.message : "The latest timetable could not be restored.");
+        setMessage("Saved dataset loaded; the latest timetable could not be restored.");
+      }
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Could not load saved data.");
+      setMessage("The API is unavailable.");
+    } finally { setBusy(false); }
   }
 
   async function clearData() {
@@ -100,7 +136,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    void loadSample();
+    void initialize();
     const mediaQuery = window.matchMedia("(max-width: 800px)");
     const updateSidebar = () => setSidebarOpen(!mediaQuery.matches);
     updateSidebar();
@@ -117,12 +153,12 @@ export default function Home() {
     </aside>
     <section className="content"><header><div className="header-title"><button className="mobile-menu" type="button" aria-label={sidebarOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><span aria-hidden="true">☰</span></button><div><p className="eyebrow">WORKSPACE / {panel.toUpperCase()}</p><h1>Timetable command center</h1></div></div></header>
       {error && <div className="error" role="alert"><strong>Action failed.</strong> {error}</div>}
-      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} clearData={clearData} busy={busy} data={data} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} run={run} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div className="hero-title"><p className="eyebrow">SMART SCHEDULING</p><h2>Build a schedule<br /><em>that works.</em></h2></div><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable <span aria-hidden="true">→</span></button><button className="outline" onClick={loadSample} disabled={busy}>Reload sample</button></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
+      {panel === "setup" ? <Setup editor={editor} setEditor={setEditor} saveData={saveData} clearData={clearData} busy={busy} data={data} setData={setData} /> : panel === "analytics" ? <AnalyticsPanel analytics={analytics} history={history} run={run} /> : ["section", "faculty", "room"].includes(panel) ? <SchedulePanel schedule={filteredSchedule} run={run} filter={filter} setFilter={setFilter} panel={panel} setPanel={setPanel} /> : <><div className="hero"><div className="hero-title"><p className="eyebrow">SMART SCHEDULING</p><h2>Build a schedule<br /><em>that works.</em></h2></div><p className="hero-copy">Coordinate courses, faculty, rooms, and sections with transparent hard-constraint validation.</p><div className="actions"><button onClick={validate} disabled={busy}>Validate data</button><button className="secondary" onClick={generate} disabled={busy}>Generate timetable <span aria-hidden="true">→</span></button><button className="outline" onClick={loadSample} disabled={busy}>Reset to sample data</button></div></div><p className="notice" aria-live="polite">{busy ? "Working…" : message}</p><div className="stats">{["Sections", "Faculty", "Rooms", "Teaching reqs"].map((label, index) => <div className="card" key={label}><span>{label}</span><strong>{counts[index]}</strong><small>configured</small></div>)}</div><OptimizationControls config={config} setConfig={setConfig} disabled={busy} /><div className="lower"><RunPanel run={run} history={history} /><TimetableSummary schedule={schedule} run={run} openTimetable={() => setPanel("section")} /></div></>}
     </section>
   </main>;
 }
 
-function Setup({ editor, setEditor, saveData, clearData, busy, data }: { editor: string; setEditor: (value: string) => void; saveData: () => void; clearData: () => void; busy: boolean; data: Data | null }) {
+function Setup({ editor, setEditor, saveData, clearData, busy, data, setData }: { editor: string; setEditor: (value: string) => void; saveData: () => void; clearData: () => void; busy: boolean; data: Data | null; setData: (value: Data) => void }) {
   const [entity, setEntity] = useState<Entity>("faculty");
   const [record, setRecord] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
@@ -191,7 +227,7 @@ function Setup({ editor, setEditor, saveData, clearData, busy, data }: { editor:
       }));
       const payload = Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
       await request(`/api/v1/${entity}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      setRecord({}); await request<Data>("/api/v1/data").then(next => { setEditor(JSON.stringify(next, null, 2)); });
+      setRecord({}); await request<Data>("/api/v1/data").then(next => { setData(next); setEditor(JSON.stringify(next, null, 2)); });
     } catch (value) { setFormError(value instanceof Error ? value.message : "Record could not be added."); }
   };
   return <div className="setup-stack"><div className="panel setup"><div className="panel-head"><div><p className="eyebrow">DATA SETUP</p><h2>Academic dataset</h2></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}><button onClick={saveData} disabled={busy}>Save dataset</button><button className="outline" onClick={clearData} disabled={busy}>Clear data & timetable</button></div></div><p className="muted-dark">Add faculty, rooms, sections, courses, time slots, and teaching requirements using simple fields. IDs connect related records.</p><div className="record-form"><label>What do you want to add?<select value={entity} onChange={event => { setEntity(event.target.value as Entity); setRecord({}); setFormError(""); }}>{(["faculty", "rooms", "sections", "courses", "time-slots", "teaching-requirements"] as Entity[]).map(item => <option key={item}>{item}</option>)}</select></label><div className="field-grid">{fields[entity].map(field => <label key={field.key} className={field.type === "checkbox" ? "checkbox-field" : undefined}>{field.type === "checkbox" ? <><input type="checkbox" checked={record[field.key] === "true"} onChange={event => setRecord({ ...record, [field.key]: String(event.target.checked) })} />{field.label}</> : <><span>{field.label}</span><input type={field.type === "slot-list" ? "text" : field.type ?? "text"} placeholder={field.placeholder} value={record[field.key] ?? ""} onChange={event => setRecord({ ...record, [field.key]: event.target.value })} required={field.required} />{field.help && <small>{field.help}</small>}</>}</label>)}</div><button onClick={addRecord}>Add {entity.replaceAll("-", " ")}</button>{formError && <p className="field-error" role="alert">{formError}</p>}</div><details className="advanced-editor"><summary>Advanced: edit the complete dataset snapshot</summary><textarea aria-label="Dataset JSON" value={editor} onChange={event => setEditor(event.target.value)} spellCheck={false} /></details>{data && <p className="notice">Current dataset is persisted in the configured database.</p>}</div></div>;

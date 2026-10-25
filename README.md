@@ -36,14 +36,15 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The Smart Scheduling dashboard loads the documented sample
-dataset, validates it, runs a seeded optimization, previews the schedule, shows action
-feedback, and exports CSV. The deployed app is available at
+Open `http://localhost:3000`. The Smart Scheduling dashboard loads the saved dataset,
+seeds the documented sample dataset only on first use, previews saved timetables, shows
+action feedback, and exports CSV. The deployed app is available at
 https://cronos-sc.vercel.app.
 
-On the Overview page, use **Reload sample** to restore the sample dataset. The Data setup
-page includes **Clear data & timetable**, which permanently removes the saved dataset and
-all generated timetables after confirmation.
+On the Overview page, use **Reset to sample data** to replace the saved dataset with the
+sample after confirmation. The Data setup page includes **Clear data & timetable**, which
+permanently removes the saved records and generated timetables after confirmation. A cleared
+workspace stays empty after refresh.
 
 ## Validate the project
 

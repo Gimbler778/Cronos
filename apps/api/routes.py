@@ -95,6 +95,11 @@ def get_data() -> Dataset:
     return _dataset()
 
 
+@router.get("/data/status")
+def get_data_status() -> dict[str, bool]:
+    return {"initialized": storage.dataset_exists()}
+
+
 @router.put("/data")
 def replace_data(value: Dataset) -> dict:
     errors = _validate_references(value)
@@ -107,6 +112,7 @@ def replace_data(value: Dataset) -> dict:
 @router.delete("/data")
 def clear_data() -> dict[str, bool]:
     storage.clear_all()
+    storage.save_dataset(Dataset())
     return {"cleared": True}
 
 
@@ -464,5 +470,6 @@ def export_csv(
 @router.post("/sample-data")
 def load_sample_data() -> dict:
     dataset = sample_dataset()
+    storage.clear_all()
     storage.save_dataset(dataset)
     return {"loaded": True}

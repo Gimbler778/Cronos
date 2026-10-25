@@ -38,6 +38,7 @@ def test_clear_data_removes_dataset_and_saved_timetable():
     client.post("/api/v1/sample-data")
     run = client.post("/api/v1/optimization-runs", json={"random_seed": 42, "population_size": 8, "max_generations": 4}).json()
     assert client.delete("/api/v1/data").json() == {"cleared": True}
+    assert client.get("/api/v1/data/status").json() == {"initialized": True}
     assert client.get("/api/v1/data").json() == {
         "faculty": [],
         "rooms": [],
@@ -47,6 +48,21 @@ def test_clear_data_removes_dataset_and_saved_timetable():
         "teaching_requirements": [],
     }
     assert client.get(f"/api/v1/optimization-runs/{run['id']}").status_code == 404
+    assert client.get("/api/v1/optimization-runs").json() == []
+
+
+def test_data_status_distinguishes_first_run_from_cleared_dataset():
+    client = TestClient(app)
+    client.delete("/api/v1/data")
+    assert client.get("/api/v1/data/status").json() == {"initialized": True}
+
+
+def test_sample_reset_clears_saved_runs():
+    client = TestClient(app)
+    client.post("/api/v1/sample-data")
+    run = client.post("/api/v1/optimization-runs", json={"random_seed": 42, "population_size": 8, "max_generations": 4}).json()
+    assert client.get(f"/api/v1/optimization-runs/{run['id']}").status_code == 200
+    assert client.post("/api/v1/sample-data").json() == {"loaded": True}
     assert client.get("/api/v1/optimization-runs").json() == []
 
 
