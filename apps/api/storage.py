@@ -10,6 +10,10 @@ from typing import Any
 from apps.api.domain import Assignment, Candidate, Dataset
 
 
+class StorageError(RuntimeError):
+    """Raised when the configured persistence backend cannot be used."""
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), default=str)
 
@@ -22,30 +26,57 @@ class Storage:
         self.sqlite_path = os.getenv("CRONOS_SQLITE_PATH", "apps/cronos.db")
         self._connection: Any = None
         self._postgres = False
+        self._postgres_errors: tuple[type[BaseException], ...] = ()
+        self._initialization_error: StorageError | None = None
         self._lock = threading.RLock()
-        self._connect()
+        try:
+            self._connect()
+        except StorageError as exc:
+            # Keep the ASGI application importable so non-storage endpoints
+            # (for example model discovery) remain available. Storage-backed
+            # requests fail explicitly through the exception handler.
+            self._initialization_error = exc
+
+    def _ensure_available(self) -> None:
+        if self._initialization_error is not None:
+            raise self._initialization_error
 
     def _connect(self) -> None:
         if os.getenv("VERCEL") and not self.database_url:
-            raise RuntimeError("DATABASE_URL must be configured when running on Vercel.")
+            raise StorageError("DATABASE_URL must be configured when running on Vercel.")
         if self.database_url:
             try:
                 import psycopg
-
-                self._connection = psycopg.connect(self.database_url, autocommit=True)
-                self._postgres = True
-                self._execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS cronos_state (
-                        key TEXT PRIMARY KEY,
-                        value JSONB NOT NULL,
-                        updated_at TIMESTAMPTZ NOT NULL
-                    )
-                    """
-                )
-                return
+                from psycopg import InterfaceError, OperationalError
             except ImportError as exc:
-                raise RuntimeError("DATABASE_URL is configured but psycopg is not installed.") from exc
+                raise StorageError("DATABASE_URL is configured but psycopg is not installed.") from exc
+            self._postgres_errors = (OperationalError, InterfaceError)
+            try:
+                connection = psycopg.connect(
+                    self.database_url,
+                    autocommit=True,
+                    connect_timeout=10,
+                    prepare_threshold=None,
+                )
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS cronos_state (
+                            key TEXT PRIMARY KEY,
+                            value JSONB NOT NULL,
+                            updated_at TIMESTAMPTZ NOT NULL
+                        )
+                        """
+                    )
+                self._connection = connection
+                self._postgres = True
+                return
+            except self._postgres_errors as exc:
+                self._connection = None
+                self._postgres = False
+                raise StorageError(
+                    "The configured PostgreSQL database could not be reached or initialized."
+                ) from exc
         os.makedirs(os.path.dirname(self.sqlite_path) or ".", exist_ok=True)
         self._connection = sqlite3.connect(self.sqlite_path, check_same_thread=False)
         self._execute(
@@ -59,28 +90,52 @@ class Storage:
         )
 
     def _execute(self, query: str, params: tuple[Any, ...] = ()) -> Any:
+        self._ensure_available()
         with self._lock:
             if self._postgres:
-                with self._connection.cursor() as cursor:
-                    cursor.execute(query, params)
-                    return cursor
+                try:
+                    with self._connection.cursor() as cursor:
+                        cursor.execute(query, params)
+                        return cursor
+                except self._postgres_errors as exc:
+                    self._connect()
+                    try:
+                        with self._connection.cursor() as cursor:
+                            cursor.execute(query, params)
+                            return cursor
+                    except self._postgres_errors as retry_error:
+                        raise StorageError("The PostgreSQL database is temporarily unavailable.") from retry_error
             cursor = self._connection.execute(query, params)
             self._connection.commit()
             return cursor
 
     def _read(self, key: str) -> Any | None:
+        self._ensure_available()
         placeholder = "%s" if self._postgres else "?"
         with self._lock:
             if self._postgres:
-                with self._connection.cursor() as cursor:
-                    cursor.execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,))
-                    row = cursor.fetchone()
+                try:
+                    with self._connection.cursor() as cursor:
+                        cursor.execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,))
+                        row = cursor.fetchone()
+                except self._postgres_errors:
+                    self._connect()
+                    try:
+                        with self._connection.cursor() as cursor:
+                            cursor.execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,))
+                            row = cursor.fetchone()
+                    except self._postgres_errors as retry_error:
+                        raise StorageError("The PostgreSQL database is temporarily unavailable.") from retry_error
             else:
                 row = self._execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,)).fetchone()
         if not row:
             return None
         value = row[0]
         return value if isinstance(value, dict) else json.loads(value)
+
+    def health(self) -> None:
+        """Run a cheap read so health checks detect database failures."""
+        self._read("dataset")
 
     def _write(self, key: str, value: Any) -> None:
         placeholder = "%s" if self._postgres else "?"

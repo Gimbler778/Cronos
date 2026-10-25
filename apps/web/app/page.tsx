@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { filterSchedule } from "./schedule";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? (typeof window === "undefined" ? "http://127.0.0.1:8000" : "");
 type View = "overview" | "setup" | "section" | "faculty" | "room" | "analytics";
 type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "teaching-requirements";
 type Violation = { code: string; entity_id?: string; slot?: string };

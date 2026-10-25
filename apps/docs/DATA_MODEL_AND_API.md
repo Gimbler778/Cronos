@@ -19,7 +19,8 @@ schema exists for local validation; production migration rollout remains a later
 Base prefix: `/api/v1`; JSON; Pydantic validation; consistent errors; never imply a schedule is valid without explicit status and constraint results.
 
 ## Suggested endpoints
-- `GET /health`
+- `GET /health` — application health
+- `GET /api/v1/health` — application and persistence health
 - `GET/PUT/DELETE /api/v1/data` — read, replace, or completely clear the saved dataset and generated timetables
 - `GET/POST /api/v1/faculty`
 - `GET/POST /api/v1/rooms`
@@ -82,7 +83,9 @@ Base prefix: `/api/v1`; JSON; Pydantic validation; consistent errors; never impl
 ```
 
 Runs currently execute synchronously for small local datasets. Background jobs, authentication,
-rate limits, and production migration operations are reserved for the deployment phase.
+and rate limits remain future work. On Vercel, configure `DATABASE_URL` and verify
+`/api/v1/health` before using data endpoints; this endpoint performs a database read and
+returns `503 STORAGE_UNAVAILABLE` when PostgreSQL is unavailable.
 
 The Data setup page exposes the destructive clear operation behind a confirmation prompt. It
 removes the dataset and all saved optimization runs/timetables; loading sample data remains an

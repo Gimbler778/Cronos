@@ -3,9 +3,11 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 from apps.api.routes import router
+from apps.api.storage import StorageError
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -22,6 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router, prefix="/api/v1")
+
+
+@app.exception_handler(StorageError)
+def storage_error_handler(_request, error: StorageError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": {"code": "STORAGE_UNAVAILABLE", "message": str(error)}},
+    )
 
 
 @app.get("/health")

@@ -57,7 +57,7 @@ npm run build:web
 npm run evaluate
 ```
 
-The current automated checks include 28 backend tests, 3 frontend tests, a production build,
+The current automated checks include 29 backend tests, 3 frontend tests, a production build,
 and the recorded multi-seed evaluation.
 
 ## Deploy the complete app to Vercel
@@ -72,10 +72,22 @@ CRONOS_WEB_ORIGINS=https://your-project.vercel.app
 NEXT_PUBLIC_API_BASE_URL=https://your-project.vercel.app
 ```
 
+`DATABASE_URL` must be a reachable Neon/PostgreSQL URL, including `sslmode=require` when
+required by the provider. After deployment, verify both
+`https://your-project.vercel.app/api/v1/health` and
+`https://your-project.vercel.app/api/v1/data`; the first checks application routing and
+the second checks database-backed storage. A storage failure returns HTTP 503 with a
+`STORAGE_UNAVAILABLE` diagnostic instead of an opaque 500.
+
+The web app falls back to same-origin API requests in production, so
+`NEXT_PUBLIC_API_BASE_URL` may be omitted when the frontend and API share a Vercel
+deployment. Set it explicitly when hosting them on different origins.
+
 Do not configure `CRONOS_SQLITE_PATH` in Vercel. SQLite remains available for local
 development only; Vercel instances are stateless and their filesystem is not durable.
-The API reads the dataset and optimization runs from PostgreSQL for every request, so
-cold starts and multiple serverless instances do not lose application state.
+The API uses PostgreSQL for every request, disables prepared statements for pooler
+compatibility, and reconnects once when a warm serverless instance has a stale database
+connection.
 
 ## Project scope
 

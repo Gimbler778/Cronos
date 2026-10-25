@@ -56,10 +56,10 @@ Authentication, background jobs, and normalized migration rollout remain later-p
 |---|---|---|---|
 | Definition | Academic entities, hard/soft constraints, sample dataset | `apps/api/domain.py`, sample endpoint | Confirm institutional data requirements |
 | Data model | Pydantic dataset and durable storage adapter | SQLite fallback; optional PostgreSQL; Alembic migration applies locally | Normalize repositories further |
-| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 28 tests | Add more malformed-slot fixtures |
+| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 29 tests | Add more malformed-slot fixtures |
 | Baseline | Seeded randomized candidate and greedy baseline | `apps/evaluate.py`; backend tests | Tune larger datasets |
 | GA | Selection, crossover, mutation, elitism, bounded repair | Required session identity and reproducibility tests pass | Tune larger datasets |
-| API | Validation, CRUD, runs, analytics, schedule, CSV, persistence semantics | 28 backend tests pass | Add auth/rate limits only if required |
+| API | Validation, CRUD, runs, analytics, schedule, CSV, persistence semantics | 29 backend tests pass | Add auth/rate limits only if required |
 | UI | Guided record additions, JSON editor, generation controls, filtered schedule, analytics, and async states | Next.js production build and Vitest suite pass | Add browser-level tests if needed |
 | Evaluation | Five-seed comparison on documented sample | Baseline feasible 5/5; greedy-seeded GA feasible 5/5 | Test larger, harder datasets |
 
@@ -76,7 +76,7 @@ Baseline: Greedy construction (`greedy_baseline`) per seed, evaluated with the s
 |---|---:|---:|
 | Hard violations | mean 0.0 | mean 0.0 |
 | Soft penalty | mean 7.0 | mean 7.0 |
-| Runtime | mean 76.0 ms | mean 3357.0 ms |
+| Runtime | mean 45.4 ms | mean 3015.2 ms |
 | Feasible runs / total | 5 / 5 | 5 / 5 |
 
 The GA finds a feasible schedule on every recorded seed and matches the baseline's soft
@@ -86,16 +86,20 @@ The sample still produces parity, so it is not evidence of global optimality.
 
 The benchmark evaluator uses a separate constrained dataset with 5 faculty, 4 rooms,
 5 sections, 6 courses, 20 time slots, and 12 teaching requirements. Constructive greedy,
-seeded GA, unseeded GA, and an unseeded GA without feasible local search are measured on
-the same five seeds. The current benchmark produced constructive greedy 5/5 feasible
-with mean soft penalty 31.0, seeded and unseeded GA 5/5 feasible with mean soft penalty
-22.4, and unseeded GA without local search 5/5 feasible with mean soft penalty 26.2.
-This isolates the contribution of the feasible local-search phase: the genetic loop
-improves the constructive result, while local search supplies most of the remaining
-quality gain. These results are not a global-optimality claim.
+greedy plus feasible local search, seeded GA, unseeded GA, and an unseeded GA without
+feasible local search are measured on the same seeds. The greedy-plus-local-search
+variant is included to avoid attributing all improvement over constructive greedy to
+genetic operators. Results therefore describe the complete hybrid optimizer; they do not
+prove that the GA component alone beats an equivalent local-search baseline. In the
+recorded run, constructive greedy achieved 31.0 mean soft penalty, greedy plus local
+search achieved 27.0, and seeded and unseeded GA achieved 22.4. The unseeded GA without
+local search achieved 26.2. All variants were feasible on 5/5 seeds. Runtime figures
+are environment-dependent, and the evaluator records the seed list and all variant
+metrics in `apps/evaluation-results.json`. These results are not a global-optimality
+claim.
 
 ## 12. Testing
-The backend suite has 28 passing tests covering seeded reproducibility, required-session
+The backend suite has 29 passing tests covering seeded reproducibility, required-session
 preservation, hard constraints, API flow, CRUD, analytics, export filters, invalid
 references, duplicate requirement IDs, baseline bounds, duplicate slot positions, run snapshot isolation, and the
 clear/reset persistence semantics. The frontend suite has 3 passing schedule-filter tests.

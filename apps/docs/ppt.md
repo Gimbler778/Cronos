@@ -32,7 +32,7 @@
 | 14 | Frontend | Overview, setup, timetable, analytics | `apps/web/app/page.tsx` |
 | 15 | Persistence | Saved data, run restore, reset/clear | `DATA_PERSISTENCE_FIX.md` |
 | 16 | Deployment | Vercel + Neon PostgreSQL | `vercel.json`, `api/index.py` |
-| 17 | Testing | 28 backend + 3 frontend + build | `apps/tests`, `apps/web/test` |
+| 17 | Testing | 29 backend + 3 frontend + build | `apps/tests`, `apps/web/test` |
 | 18 | Evaluation | Five-seed GA vs baseline | `evaluation-results.json` |
 | 19 | Project journey | Commit-to-milestone timeline | `git log` |
 | 20 | Challenges and fixes | Persistence, JSONB, quality, UI clarity | `DATA_PERSISTENCE_FIX.md` |
@@ -381,7 +381,7 @@ reliable across cold starts or instances.
 ## Slide 17 — Testing and validation
 
 **On-slide bullets:**
-- **28 backend tests**: hard constraints, scheduler determinism, session preservation,
+- **29 backend tests**: hard constraints, scheduler determinism, session preservation,
   API flow, CRUD, analytics, export filters, invalid references, baseline bounds,
   snapshot isolation, clear/reset semantics.
 - **3 frontend tests**: schedule filtering across visible and nested fields.

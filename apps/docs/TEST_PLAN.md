@@ -28,7 +28,7 @@ Verify validation, constraint checking, GA correctness, API contracts, UI behavi
 - Feasible and best-effort results have distinct statuses.
 
 ## API tests
-Test valid/invalid requests, missing resources, parameter bounds, run status/metrics, CRUD, analytics, CSV headers and filters, health endpoint, run snapshot isolation, and clear/reset persistence semantics. The current suite has 28 passing backend tests.
+Test valid/invalid requests, missing resources, parameter bounds, run status/metrics, CRUD, analytics, CSV headers and filters, health endpoint, run snapshot isolation, and clear/reset persistence semantics. The current suite has 29 passing backend tests.
 
 ## Frontend tests
 The current automated suite has 3 tests covering schedule filtering. The implemented UI

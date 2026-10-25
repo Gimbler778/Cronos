@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from apps.api.domain import Dataset
 from apps.api.sample_data import benchmark_dataset, sample_dataset
@@ -31,6 +34,7 @@ def evaluate(seeds: list[int]) -> dict:
     sample_ga = [optimize(sample, population_size=24, max_generations=60, random_seed=seed) for seed in seeds]
     sample_baseline = [greedy_baseline(sample, improve_feasible=False) for _ in seeds]
     benchmark_baseline = [greedy_baseline(benchmark, improve_feasible=False) for _ in seeds]
+    benchmark_greedy_local = [greedy_baseline(benchmark, improve_feasible=True) for _ in seeds]
     benchmark_ga = [
         optimize(benchmark, population_size=24, max_generations=60, random_seed=seed)
         for seed in seeds
@@ -61,6 +65,7 @@ def evaluate(seeds: list[int]) -> dict:
         "benchmark": {
             "dataset_counts": {key: len(getattr(benchmark, key)) for key in ("faculty", "rooms", "sections", "courses", "time_slots", "teaching_requirements")},
             "greedy": _summarize(benchmark_baseline, seeds),
+            "greedy_with_local_search": _summarize(benchmark_greedy_local, seeds),
             "ga_seeded": _summarize(benchmark_ga, seeds),
             "ga_unseeded": _summarize(benchmark_unseeded, seeds),
             "ga_unseeded_without_local_search": _summarize(benchmark_ga_raw, seeds),

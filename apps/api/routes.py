@@ -119,7 +119,8 @@ def _collection_name(path_name: str) -> str:
 
 @router.get("/health")
 def api_health() -> dict[str, str]:
-    return {"status": "ok"}
+    storage.health()
+    return {"status": "ok", "storage": "ok"}
 
 
 @router.get("/data")
