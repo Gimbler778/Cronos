@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -21,6 +22,7 @@ class Storage:
         self.sqlite_path = os.getenv("CRONOS_SQLITE_PATH", "apps/cronos.db")
         self._connection: Any = None
         self._postgres = False
+        self._lock = threading.RLock()
         self._connect()
 
     def _connect(self) -> None:
@@ -57,22 +59,24 @@ class Storage:
         )
 
     def _execute(self, query: str, params: tuple[Any, ...] = ()) -> Any:
-        if self._postgres:
-            with self._connection.cursor() as cursor:
-                cursor.execute(query, params)
-                return cursor
-        cursor = self._connection.execute(query, params)
-        self._connection.commit()
-        return cursor
+        with self._lock:
+            if self._postgres:
+                with self._connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    return cursor
+            cursor = self._connection.execute(query, params)
+            self._connection.commit()
+            return cursor
 
     def _read(self, key: str) -> Any | None:
         placeholder = "%s" if self._postgres else "?"
-        if self._postgres:
-            with self._connection.cursor() as cursor:
-                cursor.execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,))
-                row = cursor.fetchone()
-        else:
-            row = self._execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,)).fetchone()
+        with self._lock:
+            if self._postgres:
+                with self._connection.cursor() as cursor:
+                    cursor.execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,))
+                    row = cursor.fetchone()
+            else:
+                row = self._execute(f"SELECT value FROM cronos_state WHERE key={placeholder}", (key,)).fetchone()
         if not row:
             return None
         value = row[0]
@@ -102,6 +106,12 @@ class Storage:
     def save_dataset(self, dataset: Dataset) -> None:
         self._write("dataset", dataset.model_dump(mode="json"))
 
+    def replace_dataset(self, dataset: Dataset) -> None:
+        """Clear runs and replace the dataset under one process/database lock."""
+        with self._lock:
+            self._execute("DELETE FROM cronos_state")
+            self._write("dataset", dataset.model_dump(mode="json"))
+
     def clear_all(self) -> None:
         self._execute("DELETE FROM cronos_state")
 
@@ -113,12 +123,13 @@ class Storage:
 
     def list_runs(self) -> list[dict[str, Any]]:
         placeholder = "%s" if self._postgres else "?"
-        if self._postgres:
-            with self._connection.cursor() as cursor:
-                cursor.execute(f"SELECT key, value FROM cronos_state WHERE key LIKE {placeholder}", ("run:%",))
-                rows = cursor.fetchall()
-        else:
-            rows = self._execute(f"SELECT key, value FROM cronos_state WHERE key LIKE {placeholder}", ("run:%",)).fetchall()
+        with self._lock:
+            if self._postgres:
+                with self._connection.cursor() as cursor:
+                    cursor.execute(f"SELECT key, value FROM cronos_state WHERE key LIKE {placeholder}", ("run:%",))
+                    rows = cursor.fetchall()
+            else:
+                rows = self._execute(f"SELECT key, value FROM cronos_state WHERE key LIKE {placeholder}", ("run:%",)).fetchall()
         values = []
         for key, value in rows:
             values.append(value if isinstance(value, dict) else json.loads(value))

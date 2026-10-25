@@ -28,7 +28,7 @@ Verify validation, constraint checking, GA correctness, API contracts, UI behavi
 - Feasible and best-effort results have distinct statuses.
 
 ## API tests
-Test valid/invalid requests, missing resources, parameter bounds, run status/metrics, CRUD, analytics, CSV headers, health endpoint, and run snapshot isolation. Current automated API coverage passes.
+Test valid/invalid requests, missing resources, parameter bounds, run status/metrics, CRUD, analytics, CSV headers and filters, health endpoint, run snapshot isolation, and clear/reset persistence semantics. The current suite has 28 passing backend tests.
 
 ## Frontend tests
 The current automated suite has 3 tests covering schedule filtering. The implemented UI
@@ -43,4 +43,5 @@ On a fixed dataset record entity counts, GA parameters, seed, runtime, hard viol
 ## Exit criteria
 Critical constraint tests pass; no known session loss/duplication in GA operators; API tests
 pass; UI displays a generated schedule and validation summary; limitations are documented;
-deployment-specific work is explicitly deferred.
+the deployed configuration and persistence semantics are covered by documentation and
+regression tests. Browser-level E2E coverage remains optional follow-up work.

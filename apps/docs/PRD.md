@@ -44,6 +44,8 @@ Local-first, no GPU or paid API, server-side validation, clear errors, responsiv
 - Infeasible/best-effort outcomes are clearly labeled.
 - UI displays schedule and validation summary.
 - CSV export and automated tests work.
+- Saved data and the latest timetable survive a page refresh; an explicitly cleared
+  workspace stays empty.
 - Report includes actual environment and measured results.
 
 ## Delivery phases
@@ -54,6 +56,7 @@ Local-first, no GPU or paid API, server-side validation, clear errors, responsiv
 4. Frontend timetable and analytics.
 5. Testing and baseline comparison.
 6. Report, screenshots, and demonstration.
+7. Deployment and persistence hardening.
 
 ## Risks
 Infeasible input, slow convergence, misleading single fitness scores, scope creep, UI/API drift, and irreproducible results. Mitigate with input diagnostics, runtime limits, separate hard/soft metrics, a small MVP, shared API schemas, and recorded seeds.

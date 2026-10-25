@@ -5,7 +5,7 @@
 - **Room:** id, name, capacity, room type, unavailable slots.
 - **Section:** id, name, size, department, semester.
 - **Course:** id, code, name, required room type, duration, sessions per week, consecutive-slot requirement.
-- **TeachingRequirement:** id, course, section, faculty, required sessions, duration, room requirements.
+- **TeachingRequirement:** id, course, section, faculty, required sessions, optional duration, and room requirements. An omitted duration inherits the course duration.
 - **TimeSlot:** id, day, period index, start time, end time.
 - **OptimizationRun:** id, status, timestamps, seed, parameters, input hash, hard violations, soft penalty, runtime, generations, diagnostics.
 - **ScheduledSession:** id, run id, teaching requirement, occurrence index, slot/block, room.

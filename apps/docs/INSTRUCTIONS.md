@@ -1,6 +1,7 @@
 # Setup and Run Instructions
 
-These commands describe the current local MVP. Production deployment instructions are intentionally deferred.
+These commands describe the current local MVP. The hosted deployment uses the same code
+through `vercel.json`; its environment configuration is documented at the end of this file.
 
 ## Prerequisites
 Python 3.11+, Node.js LTS, npm, Git, a Neon PostgreSQL database (free tier is sufficient), and a modern browser. No GPU is needed.
@@ -69,6 +70,18 @@ Frontend: `npm --prefix apps\web test -- --run`
 Production build: `npm run build:web`
 Optional E2E: `npx playwright test`.
 
+## Deployment (Vercel)
+Import the repository with the repository root as the project root. Vercel uses the
+`frontend` service (`apps/web`) and the `backend` service (`api.index:app`) defined in
+`vercel.json`. Configure:
+```text
+DATABASE_URL=<Neon pooled PostgreSQL connection string>
+CRONOS_WEB_ORIGINS=https://your-project.vercel.app
+NEXT_PUBLIC_API_BASE_URL=https://your-project.vercel.app
+```
+Do not set `CRONOS_SQLITE_PATH` on Vercel; serverless filesystems are not durable. See the
+root `README.md` for the current live URL and deployment details.
+
 ## Suggested implementation order
 1. Domain models and sample dataset.
 2. Constraint checker and tests.
@@ -82,5 +95,6 @@ Optional E2E: `npx playwright test`.
 ## Troubleshooting
 Check API base URL and CORS if the web app cannot reach the API. If persistence fails, verify `DATABASE_URL`, TLS settings, and that the Neon project is active. Reduce GA population/generations during development. For infeasible results, inspect validation and diagnostics before increasing runtime.
 
-The local MVP is implemented and verified with the commands above. Hosted deployment,
-authentication, background jobs, production migration rollout, and monitoring are later-phase work.
+The MVP is implemented and verified locally, and the hosted configuration is deployed.
+Authentication, background jobs, normalized production migration rollout, rate limiting,
+and monitoring remain later-phase work.

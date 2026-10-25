@@ -25,6 +25,7 @@ def test_unavailability_and_overlap_are_detected():
 
 def test_duration_requires_a_consecutive_slot_block():
     data = sample()
+    data.courses[0].consecutive_slots_required = True
     data.teaching_requirements[0].duration = 2
     sessions = expand_sessions(data)
     candidate = Candidate([Assignment(sessions[0].id, "a", "r1")])

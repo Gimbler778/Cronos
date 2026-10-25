@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from apps.api.domain import Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
+from apps.api.domain import Assignment, Candidate, Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
 from apps.api.sample_data import sample_dataset
 from apps.api.scheduler import expand_sessions, greedy_baseline, optimize, randomized_baseline
 from apps.api.storage import Storage
@@ -27,10 +28,22 @@ class OptimizationRequest(BaseModel):
     max_generations: int = Field(default=250, ge=1, le=5000)
     crossover_probability: float = Field(default=0.8, ge=0, le=1)
     mutation_probability: float = Field(default=0.15, ge=0, le=1)
+    swap_probability: float = Field(default=0.35, ge=0, le=1)
     tournament_size: int = Field(default=3, ge=2, le=20)
     elite_count: int = Field(default=2, ge=1, le=100)
     random_seed: int | None = None
     soft_weights: dict[str, float] = Field(default_factory=dict)
+    no_improvement_generations: int = Field(default=25, ge=1, le=5000)
+    target_soft_penalty: float | None = Field(default=None, ge=0)
+    use_greedy_seed: bool = True
+    improve_feasible: bool = True
+
+    @field_validator("soft_weights")
+    @classmethod
+    def validate_soft_weights(cls, value: dict[str, float]) -> dict[str, float]:
+        if any(not math.isfinite(weight) or weight < 0 for weight in value.values()):
+            raise ValueError("soft weights must be finite and non-negative")
+        return value
 
 
 def _validate_references(value: Dataset) -> list[dict[str, str]]:
@@ -40,6 +53,7 @@ def _validate_references(value: Dataset) -> list[dict[str, str]]:
         "sections": {item.id for item in value.sections},
         "courses": {item.id for item in value.courses},
         "time_slots": {item.id for item in value.time_slots},
+        "teaching_requirements": {item.id for item in value.teaching_requirements},
     }
     errors: list[dict[str, str]] = []
     for kind, items in ids.items():
@@ -62,12 +76,30 @@ def _validate_references(value: Dataset) -> list[dict[str, str]]:
     return errors
 
 
+def _validated_dataset(value: Dataset) -> Dataset:
+    try:
+        return Dataset.model_validate(value.model_dump(mode="json"))
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "INVALID_INPUT", "message": "Dataset constraints are invalid.", "details": [{"message": str(error)}]},
+        ) from error
+
+
 def _record(run_id: str) -> dict:
     record = storage.load_run(run_id)
     if not record:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Optimization run not found."})
     if "candidate" not in record:
         record["candidate"] = storage.load_candidate(run_id)
+    elif isinstance(record["candidate"], dict):
+        value = record["candidate"]
+        record["candidate"] = Candidate(
+            assignments=[Assignment(**item) for item in value["assignments"]],
+            hard_violations=value["hard_violations"],
+            soft_penalty=value["soft_penalty"],
+            violations=value["violations"],
+        )
     return record
 
 
@@ -111,8 +143,7 @@ def replace_data(value: Dataset) -> dict:
 
 @router.delete("/data")
 def clear_data() -> dict[str, bool]:
-    storage.clear_all()
-    storage.save_dataset(Dataset())
+    storage.replace_dataset(Dataset())
     return {"cleared": True}
 
 
@@ -124,7 +155,7 @@ def _collection(name: str, model: type[BaseModel], value: BaseModel | None = Non
     if any(item.id == value.id for item in items):
         raise HTTPException(status_code=409, detail={"code": "DUPLICATE_ID", "message": f"{name} ID already exists."})
     items.append(value)
-    updated = dataset.model_copy(update={name: items})
+    updated = _validated_dataset(dataset.model_copy(update={name: items}))
     errors = _validate_references(updated)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Entity references are invalid.", "details": errors})
@@ -205,7 +236,7 @@ def update_collection_item(collection: str, item_id: str, value: dict) -> BaseMo
     if value.get("id", item_id) != item_id:
         raise HTTPException(status_code=422, detail={"code": "ID_IMMUTABLE", "message": "Entity IDs cannot be changed."})
     replacement = model.model_validate({**next(item.model_dump(mode="json") for item in items if item.id == item_id), **value})
-    updated = dataset.model_copy(update={name: [replacement if item.id == item_id else item for item in items]})
+    updated = _validated_dataset(dataset.model_copy(update={name: [replacement if item.id == item_id else item for item in items]}))
     errors = _validate_references(updated)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Entity references are invalid.", "details": errors})
@@ -231,7 +262,7 @@ def delete_collection_item(collection: str, item_id: str) -> Response:
     for field in references.get(name, ()):
         if any(getattr(requirement, field) == item_id for requirement in dataset.teaching_requirements):
             raise HTTPException(status_code=409, detail={"code": "REFERENCED_ENTITY", "message": "Entity is referenced by a teaching requirement."})
-    updated = dataset.model_copy(update={name: [item for item in items if item.id != item_id]})
+    updated = _validated_dataset(dataset.model_copy(update={name: [item for item in items if item.id != item_id]}))
     storage.save_dataset(updated)
     return Response(status_code=204)
 
@@ -265,10 +296,13 @@ def create_run(request: OptimizationRequest) -> dict:
         "diagnostics": result.diagnostics,
         "history": result.history,
         "dataset": dataset.model_dump(mode="json"),
-        "candidate": result.candidate,
+        "candidate": {
+            "assignments": [item.__dict__ for item in result.candidate.assignments] if result.candidate else [],
+            "hard_violations": result.candidate.hard_violations if result.candidate else 0,
+            "soft_penalty": result.candidate.soft_penalty if result.candidate else 0,
+            "violations": result.candidate.violations if result.candidate else [],
+        },
     }
-    candidate = record.pop("candidate")
-    storage.save_candidate(run_id, candidate)
     storage.save_run(run_id, record)
     return {key: value for key, value in record.items() if key != "candidate"}
 
@@ -285,7 +319,7 @@ def create_baseline(request: OptimizationRequest) -> dict:
     errors = _validate_references(dataset)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Validate data before running baseline.", "details": errors})
-    result = randomized_baseline(dataset, request.random_seed)
+    result = randomized_baseline(dataset, request.random_seed, request.soft_weights)
     return {
         "status": result.status,
         "hard_violations": result.candidate.hard_violations if result.candidate else None,
@@ -295,12 +329,12 @@ def create_baseline(request: OptimizationRequest) -> dict:
 
 
 @router.post("/baseline/greedy")
-def create_greedy_baseline() -> dict:
+def create_greedy_baseline(request: OptimizationRequest | None = None) -> dict:
     dataset = _dataset()
     errors = _validate_references(dataset)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "INVALID_INPUT", "message": "Validate data before running baseline.", "details": errors})
-    result = greedy_baseline(dataset)
+    result = greedy_baseline(dataset, request.soft_weights if request else None)
     return {
         "status": result.status,
         "hard_violations": result.candidate.hard_violations if result.candidate else None,
@@ -348,6 +382,8 @@ def get_schedule(run_id: str) -> dict:
                 "course_id": session.course_id,
                 "section_id": session.section_id,
                 "faculty_id": session.faculty_id,
+                "duration": session.duration,
+                "consecutive_required": session.consecutive_required,
                 "slot": slot.model_dump(mode="json"),
                 "room": room.model_dump(mode="json"),
                 "course": course.model_dump(mode="json"),
@@ -470,6 +506,5 @@ def export_csv(
 @router.post("/sample-data")
 def load_sample_data() -> dict:
     dataset = sample_dataset()
-    storage.clear_all()
-    storage.save_dataset(dataset)
+    storage.replace_dataset(dataset)
     return {"loaded": True}

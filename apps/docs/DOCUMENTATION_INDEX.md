@@ -12,4 +12,5 @@
 - `REPORT.md`: completed report with measured results and limitations.
 - `ROADMAP.md`: development checklist.
 - `UI_DESIGN.md`: screen design and accessibility.
+- `ppt.md`: slide-by-slide presentation plan mapping the full project work.
 - `.gitignore`: ignore rules.

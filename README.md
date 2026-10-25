@@ -57,7 +57,7 @@ npm run build:web
 npm run evaluate
 ```
 
-The current automated checks include 16 backend tests, 3 frontend tests, a production build,
+The current automated checks include 28 backend tests, 3 frontend tests, a production build,
 and the recorded multi-seed evaluation.
 
 ## Deploy the complete app to Vercel
@@ -83,4 +83,5 @@ The current repository targets the deployed MVP. Authentication, background jobs
 limiting, migration rollout, monitoring, and release operations are reserved for a later phase.
 
 See the documentation in [apps/docs](apps/docs), including the
-[project report](apps/docs/REPORT.md) and [roadmap](apps/docs/ROADMAP.md).
+[project report](apps/docs/REPORT.md), [roadmap](apps/docs/ROADMAP.md), and
+[slide-by-slide presentation plan](apps/docs/ppt.md).

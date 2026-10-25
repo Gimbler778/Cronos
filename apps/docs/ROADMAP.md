@@ -49,9 +49,17 @@
 - [x] Finalize `REPORT.md` with measured results and limitations.
 - [ ] Tag final version (repository/release task).
 
+## Phase 7 — Deployment and reliability
+- [x] Configure Vercel multi-service deployment (Next.js + FastAPI).
+- [x] Store state in PostgreSQL/Neon with JSONB values on Vercel.
+- [x] Persist runs, schedule snapshots, violations, and final metrics.
+- [x] Restore the saved dataset and latest timetable on page load.
+- [x] Separate first-run seeding, explicit sample reset, and destructive clear.
+- [x] Deploy the MVP at https://cronos-sc.vercel.app.
+
 ## Reserved for later deployment/release phase
-Neon production hardening, normalized migration rollout, Docker Compose, authentication,
-background jobs, rate limiting, hosted deployment, release tagging, and operational monitoring.
+Normalized migration rollout, Docker Compose, authentication, per-user workspaces,
+background jobs, rate limiting, release tagging, and operational monitoring.
 
 ## Optional product extensions
 XLSX/PDF import/export, manual schedule editing, alternative algorithms, and larger real-world datasets.

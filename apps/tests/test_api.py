@@ -33,6 +33,21 @@ def test_invalid_reference_is_rejected():
     assert response.json()["detail"]["code"] == "INVALID_INPUT"
 
 
+def test_duplicate_teaching_requirement_id_is_rejected():
+    client = TestClient(app)
+    response = client.put(
+        "/api/v1/data",
+        json={
+            "teaching_requirements": [
+                {"id": "duplicate", "course_id": "missing", "section_id": "missing", "faculty_id": "missing", "required_sessions": 1},
+                {"id": "duplicate", "course_id": "missing", "section_id": "missing", "faculty_id": "missing", "required_sessions": 1},
+            ]
+        },
+    )
+    assert response.status_code == 422
+    assert any(item["code"] == "DUPLICATE_ID" for item in response.json()["detail"]["details"])
+
+
 def test_clear_data_removes_dataset_and_saved_timetable():
     client = TestClient(app)
     client.post("/api/v1/sample-data")
@@ -89,6 +104,23 @@ def test_request_bounds_and_baseline():
     baseline = client.post("/api/v1/baseline", json={"random_seed": 42})
     assert baseline.status_code == 200
     assert {"status", "hard_violations", "soft_penalty"} <= baseline.json().keys()
+
+
+def test_negative_soft_weights_are_rejected():
+    client = TestClient(app)
+    client.post("/api/v1/sample-data")
+    response = client.post(
+        "/api/v1/optimization-runs",
+        json={"soft_weights": {"faculty_preference": -1}},
+    )
+    assert response.status_code == 422
+
+
+def test_time_slot_updates_revalidate_dataset_constraints():
+    client = TestClient(app)
+    client.post("/api/v1/sample-data")
+    response = client.put("/api/v1/time-slots/mon-2", json={"day": "Monday", "period": 1})
+    assert response.status_code == 422
 
 
 def test_run_schedule_uses_input_snapshot():

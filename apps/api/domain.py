@@ -46,7 +46,11 @@ class Course(BaseModel):
     name: str
     required_room_type: str
     duration: int = Field(default=1, ge=1)
-    sessions_per_week: int = Field(default=1, ge=1)
+    sessions_per_week: int = Field(
+        default=1,
+        ge=1,
+        description="Informational catalog value; TeachingRequirement.required_sessions controls scheduling.",
+    )
     consecutive_slots_required: bool = False
 
 
@@ -56,7 +60,7 @@ class TeachingRequirement(BaseModel):
     section_id: str
     faculty_id: str
     required_sessions: int = Field(ge=1)
-    duration: int = Field(default=1, ge=1)
+    duration: int | None = Field(default=None, ge=1)
     room_type: str | None = None
 
 

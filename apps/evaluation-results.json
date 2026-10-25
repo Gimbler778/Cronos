@@ -1,84 +1,237 @@
 {
-  "dataset_counts": {
-    "faculty": 3,
-    "rooms": 4,
-    "sections": 3,
-    "courses": 4,
-    "time_slots": 15,
-    "teaching_requirements": 6
-  },
   "parameters": {
-    "population_size": 40,
-    "max_generations": 100
+    "population_size": 24,
+    "max_generations": 60,
+    "no_improvement_generations": 25
   },
-  "baseline": {
-    "seeds": [
-      1,
-      7,
-      42,
-      99,
-      123
-    ],
-    "hard_violations": [
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "soft_penalty": [
-      7.0,
-      7.0,
-      7.0,
-      7.0,
-      7.0
-    ],
-    "runtime_ms": [
-      46,
-      52,
-      46,
-      43,
-      41
-    ],
-    "mean_hard_violations": 0,
-    "mean_soft_penalty": 7.0,
-    "mean_runtime_ms": 45.6,
-    "feasible_runs": 5,
-    "total_runs": 5
+  "sample": {
+    "dataset_counts": {
+      "faculty": 3,
+      "rooms": 4,
+      "sections": 3,
+      "courses": 4,
+      "time_slots": 15,
+      "teaching_requirements": 6
+    },
+    "baseline": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        7.0,
+        7.0,
+        7.0,
+        7.0,
+        7.0
+      ],
+      "runtime_ms": [
+        64,
+        63,
+        123,
+        69,
+        61
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 7.0,
+      "mean_runtime_ms": 76,
+      "feasible_runs": 5,
+      "total_runs": 5
+    },
+    "ga": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        7.0,
+        7.0,
+        7.0,
+        7.0,
+        7.0
+      ],
+      "runtime_ms": [
+        4145,
+        3305,
+        3118,
+        3250,
+        2967
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 7.0,
+      "mean_runtime_ms": 3357,
+      "feasible_runs": 5,
+      "total_runs": 5
+    }
   },
-  "ga": {
-    "seeds": [
-      1,
-      7,
-      42,
-      99,
-      123
-    ],
-    "hard_violations": [
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "soft_penalty": [
-      7.0,
-      7.0,
-      7.0,
-      7.0,
-      7.0
-    ],
-    "runtime_ms": [
-      45,
-      45,
-      45,
-      45,
-      47
-    ],
-    "mean_hard_violations": 0,
-    "mean_soft_penalty": 7.0,
-    "mean_runtime_ms": 45.4,
-    "feasible_runs": 5,
-    "total_runs": 5
+  "benchmark": {
+    "dataset_counts": {
+      "faculty": 5,
+      "rooms": 4,
+      "sections": 5,
+      "courses": 6,
+      "time_slots": 20,
+      "teaching_requirements": 12
+    },
+    "greedy": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        31.0,
+        31.0,
+        31.0,
+        31.0,
+        31.0
+      ],
+      "runtime_ms": [
+        2732,
+        2352,
+        2364,
+        2335,
+        2245
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 31.0,
+      "mean_runtime_ms": 2405.6,
+      "feasible_runs": 5,
+      "total_runs": 5
+    },
+    "ga_seeded": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        20.0,
+        23.0,
+        23.0,
+        22.0,
+        24.0
+      ],
+      "runtime_ms": [
+        19410,
+        19386,
+        19279,
+        19411,
+        19183
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 22.4,
+      "mean_runtime_ms": 19333.8,
+      "feasible_runs": 5,
+      "total_runs": 5
+    },
+    "ga_unseeded": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        20.0,
+        23.0,
+        23.0,
+        22.0,
+        24.0
+      ],
+      "runtime_ms": [
+        15043,
+        14956,
+        15231,
+        18454,
+        20477
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 22.4,
+      "mean_runtime_ms": 16832.2,
+      "feasible_runs": 5,
+      "total_runs": 5
+    },
+    "ga_unseeded_without_local_search": {
+      "seeds": [
+        1,
+        7,
+        42,
+        99,
+        123
+      ],
+      "hard_violations": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "soft_penalty": [
+        22.0,
+        27.0,
+        27.0,
+        26.0,
+        29.0
+      ],
+      "runtime_ms": [
+        13589,
+        14408,
+        10339,
+        10841,
+        12015
+      ],
+      "mean_hard_violations": 0,
+      "mean_soft_penalty": 26.2,
+      "mean_runtime_ms": 12238.4,
+      "feasible_runs": 5,
+      "total_runs": 5
+    }
   }
 }

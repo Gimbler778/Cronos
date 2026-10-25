@@ -9,10 +9,10 @@ type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "tea
 type Violation = { code: string; entity_id?: string; slot?: string };
 type Run = { id: string; status: string; hard_violations: number | null; soft_penalty: number | null; runtime_ms: number; generations: number; diagnostics: string[]; violations?: Violation[] };
 type Data = { faculty: Record<string, unknown>[]; rooms: Record<string, unknown>[]; sections: Record<string, unknown>[]; courses: Record<string, unknown>[]; time_slots: Record<string, unknown>[]; teaching_requirements: Record<string, unknown>[] };
-type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
+type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; duration: number; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
 type Point = { generation: number; hard_violations: number; soft_penalty: number };
 type Analytics = { sessions_by_slot: Record<string, number>; sessions_by_room: Record<string, number>; sessions_by_section: Record<string, number> };
-type Config = { population_size: number; max_generations: number; crossover_probability: number; mutation_probability: number; tournament_size: number; elite_count: number; random_seed: number };
+type Config = { population_size: number; max_generations: number; crossover_probability: number; mutation_probability: number; swap_probability: number; tournament_size: number; elite_count: number; random_seed: number; no_improvement_generations: number; target_soft_penalty: number | null; use_greedy_seed: boolean; soft_weights: Record<string, number> };
 
 const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const sortDays = (days: string[]) => [...days].sort((left, right) => {
@@ -29,7 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const emptyData: Data = { faculty: [], rooms: [], sections: [], courses: [], time_slots: [], teaching_requirements: [] };
-const emptyConfig: Config = { population_size: 40, max_generations: 100, crossover_probability: 0.8, mutation_probability: 0.15, tournament_size: 3, elite_count: 2, random_seed: 42 };
+const emptyConfig: Config = { population_size: 24, max_generations: 60, crossover_probability: 0.8, mutation_probability: 0.15, swap_probability: 0.35, tournament_size: 3, elite_count: 2, random_seed: 42, no_improvement_generations: 25, target_soft_penalty: null, use_greedy_seed: true, soft_weights: {} };
 
 export default function Home() {
   const [data, setData] = useState<Data | null>(null);
@@ -161,6 +161,7 @@ export default function Home() {
 function Setup({ editor, setEditor, saveData, clearData, busy, data, setData }: { editor: string; setEditor: (value: string) => void; saveData: () => void; clearData: () => void; busy: boolean; data: Data | null; setData: (value: Data) => void }) {
   const [entity, setEntity] = useState<Entity>("faculty");
   const [record, setRecord] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   type Field = { key: string; label: string; type?: "number" | "time" | "checkbox" | "slot-list"; placeholder?: string; required?: boolean; help?: string };
   const fields: Record<Entity, Field[]> = {
@@ -192,7 +193,7 @@ function Setup({ editor, setEditor, saveData, clearData, busy, data, setData }: 
       { key: "code", label: "Course code", placeholder: "CS301", required: true },
       { key: "name", label: "Course name", placeholder: "Algorithms", required: true },
       { key: "required_room_type", label: "Room type", placeholder: "lecture", required: true },
-      { key: "duration", label: "Duration (slots)", type: "number", placeholder: "1", required: true },
+      { key: "duration", label: "Duration override (slots)", type: "number", placeholder: "Course default", help: "Optional; defaults to the course duration." },
       { key: "sessions_per_week", label: "Sessions per week", type: "number", placeholder: "3", required: true },
       { key: "consecutive_slots_required", label: "Require consecutive slots", type: "checkbox", help: "Keep multi-slot sessions together." },
     ],
@@ -213,6 +214,10 @@ function Setup({ editor, setEditor, saveData, clearData, busy, data, setData }: 
       { key: "room_type", label: "Room type override", placeholder: "lab", help: "Optional; defaults to the course room type." },
     ],
   };
+  const refresh = async () => {
+    const next = await request<Data>("/api/v1/data");
+    setData(next); setEditor(JSON.stringify(next, null, 2));
+  };
   const addRecord = async () => {
     setFormError("");
     try {
@@ -226,16 +231,19 @@ function Setup({ editor, setEditor, saveData, clearData, busy, data, setData }: 
         return [field.key, raw];
       }));
       const payload = Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
-      await request(`/api/v1/${entity}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      setRecord({}); await request<Data>("/api/v1/data").then(next => { setData(next); setEditor(JSON.stringify(next, null, 2)); });
-    } catch (value) { setFormError(value instanceof Error ? value.message : "Record could not be added."); }
+      await request(`/api/v1/${entity}${editingId ? `/${editingId}` : ""}`, { method: editingId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      setRecord({}); setEditingId(null); await refresh();
+    } catch (value) { setFormError(value instanceof Error ? value.message : `Record could not be ${editingId ? "updated" : "added"}.`); }
   };
-  return <div className="setup-stack"><div className="panel setup"><div className="panel-head"><div><p className="eyebrow">DATA SETUP</p><h2>Academic dataset</h2></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}><button onClick={saveData} disabled={busy}>Save dataset</button><button className="outline" onClick={clearData} disabled={busy}>Clear data & timetable</button></div></div><p className="muted-dark">Add faculty, rooms, sections, courses, time slots, and teaching requirements using simple fields. IDs connect related records.</p><div className="record-form"><label>What do you want to add?<select value={entity} onChange={event => { setEntity(event.target.value as Entity); setRecord({}); setFormError(""); }}>{(["faculty", "rooms", "sections", "courses", "time-slots", "teaching-requirements"] as Entity[]).map(item => <option key={item}>{item}</option>)}</select></label><div className="field-grid">{fields[entity].map(field => <label key={field.key} className={field.type === "checkbox" ? "checkbox-field" : undefined}>{field.type === "checkbox" ? <><input type="checkbox" checked={record[field.key] === "true"} onChange={event => setRecord({ ...record, [field.key]: String(event.target.checked) })} />{field.label}</> : <><span>{field.label}</span><input type={field.type === "slot-list" ? "text" : field.type ?? "text"} placeholder={field.placeholder} value={record[field.key] ?? ""} onChange={event => setRecord({ ...record, [field.key]: event.target.value })} required={field.required} />{field.help && <small>{field.help}</small>}</>}</label>)}</div><button onClick={addRecord}>Add {entity.replaceAll("-", " ")}</button>{formError && <p className="field-error" role="alert">{formError}</p>}</div><details className="advanced-editor"><summary>Advanced: edit the complete dataset snapshot</summary><textarea aria-label="Dataset JSON" value={editor} onChange={event => setEditor(event.target.value)} spellCheck={false} /></details>{data && <p className="notice">Current dataset is persisted in the configured database.</p>}</div></div>;
+  const records = data?.[entity.replaceAll("-", "_") as keyof Data] ?? [];
+  return <div className="setup-stack"><div className="panel setup"><div className="panel-head"><div><p className="eyebrow">DATA SETUP</p><h2>Academic dataset</h2></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}><button onClick={saveData} disabled={busy}>Save dataset</button><button className="outline" onClick={clearData} disabled={busy}>Clear data & timetable</button></div></div><p className="muted-dark">Add, edit, or delete records using simple fields. IDs connect related records.</p><div className="record-form"><label>{editingId ? "Editing" : "What do you want to add?"}<select value={entity} disabled={Boolean(editingId)} onChange={event => { setEntity(event.target.value as Entity); setRecord({}); setFormError(""); }}>{(["faculty", "rooms", "sections", "courses", "time-slots", "teaching-requirements"] as Entity[]).map(item => <option key={item}>{item}</option>)}</select></label><div className="field-grid">{fields[entity].map(field => <label key={field.key} className={field.type === "checkbox" ? "checkbox-field" : undefined}>{field.type === "checkbox" ? <><input type="checkbox" checked={record[field.key] === "true"} onChange={event => setRecord({ ...record, [field.key]: String(event.target.checked) })} />{field.label}</> : <><span>{field.label}</span><input type={field.type === "slot-list" ? "text" : field.type ?? "text"} placeholder={field.placeholder} value={record[field.key] ?? ""} onChange={event => setRecord({ ...record, [field.key]: event.target.value })} required={field.required} disabled={field.key === "id" && Boolean(editingId)} />{field.help && <small>{field.help}</small>}</>}</label>)}</div><div style={{ display: "flex", gap: 8 }}><button onClick={addRecord}>{editingId ? "Update" : "Add"} {entity.replaceAll("-", " ")}</button>{editingId && <button className="outline" onClick={() => { setRecord({}); setEditingId(null); setFormError(""); }}>Cancel</button>}</div>{formError && <p className="field-error" role="alert">{formError}</p>}</div><div className="schedule">{records.map(item => { const id = String((item as Record<string, unknown>).id); return <div className="schedule-row schedule-detail" key={id}><span><b>{id}</b></span><small>{JSON.stringify(item).slice(0, 100)}</small><button className="outline" onClick={() => { const next = item as Record<string, unknown>; setRecord(Object.fromEntries(fields[entity].map(field => [field.key, Array.isArray(next[field.key]) ? (next[field.key] as string[]).join(", ") : String(next[field.key] ?? "")]))); setEditingId(id); setFormError(""); }}>Edit</button><button className="outline" onClick={async () => { if (!window.confirm(`Delete ${id}?`)) return; try { await request(`/api/v1/${entity}/${id}`, { method: "DELETE" }); await refresh(); } catch (value) { setFormError(value instanceof Error ? value.message : "Record could not be deleted."); } }}>Delete</button></div>; })}</div><details className="advanced-editor"><summary>Advanced: edit the complete dataset snapshot</summary><textarea aria-label="Dataset JSON" value={editor} onChange={event => setEditor(event.target.value)} spellCheck={false} /></details>{data && <p className="notice">Current dataset is persisted in the configured database.</p>}</div></div>;
 }
 
 function OptimizationControls({ config, setConfig, disabled }: { config: Config; setConfig: (value: Config) => void; disabled: boolean }) {
-  const update = (key: keyof Config, value: string) => setConfig({ ...config, [key]: Number(value) });
-  return <details className="panel controls"><summary>Optimization controls <span>population, generations, probabilities, seed</span></summary><div className="control-grid">{(["population_size", "max_generations", "crossover_probability", "mutation_probability", "tournament_size", "elite_count", "random_seed"] as (keyof Config)[]).map(key => <label key={key}>{key.replaceAll("_", " ")}<input type="number" step={key.includes("probability") ? "0.05" : "1"} min={key.includes("probability") ? "0" : "1"} value={config[key]} disabled={disabled} onChange={event => update(key, event.target.value)} /></label>)}</div></details>;
+  const update = (key: keyof Config, value: string) => setConfig({ ...config, [key]: Number(value) } as Config);
+  const numeric: Array<"population_size" | "max_generations" | "crossover_probability" | "mutation_probability" | "swap_probability" | "tournament_size" | "elite_count" | "random_seed" | "no_improvement_generations"> = ["population_size", "max_generations", "crossover_probability", "mutation_probability", "swap_probability", "tournament_size", "elite_count", "random_seed", "no_improvement_generations"];
+  const weightKeys = ["faculty_preference", "section_gaps", "faculty_daily_load", "consecutive_periods", "repeat_distribution"];
+  return <details className="panel controls"><summary>Optimization controls <span>GA options, soft weights, and stopping rules</span></summary><div className="control-grid">{numeric.map(key => <label key={key}>{key.replaceAll("_", " ")}<input type="number" step={key.includes("probability") || key === "swap_probability" ? "0.05" : "1"} min={key.includes("probability") || key === "swap_probability" ? "0" : "1"} value={config[key] ?? ""} disabled={disabled} onChange={event => update(key, event.target.value)} /></label>)}<label>target soft penalty<input type="number" min="0" step="0.1" value={config.target_soft_penalty ?? ""} disabled={disabled} onChange={event => setConfig({ ...config, target_soft_penalty: event.target.value ? Number(event.target.value) : null })} /></label><label className="checkbox-field"><input type="checkbox" checked={config.use_greedy_seed} disabled={disabled} onChange={event => setConfig({ ...config, use_greedy_seed: event.target.checked })} /> use greedy seed</label>{weightKeys.map(key => <label key={key}>{key.replaceAll("_", " ")}<input type="number" min="0" step="0.1" value={config.soft_weights[key] ?? ""} disabled={disabled} onChange={event => setConfig({ ...config, soft_weights: { ...config.soft_weights, [key]: event.target.value ? Number(event.target.value) : 0 } })} /></label>)}</div></details>;
 }
 
 function RunPanel({ run, history }: { run: Run | null; history: Point[] }) {
@@ -247,11 +255,11 @@ function ViolationList({ violations }: { violations: Violation[] }) {
 }
 
 function sessionPlacement(item: Session, dayItems: Session[]) {
- const duration = item.course?.duration ?? 1;
+ const duration = item.duration;
  const start = item.slot.period;
  const end = start + duration;
  const cluster = dayItems.filter(other => {
-   const otherEnd = other.slot.period + (other.course?.duration ?? 1);
+   const otherEnd = other.slot.period + other.duration;
    return other.slot.period < end && start < otherEnd;
  });
  const ordered = [...cluster].sort((left, right) => left.slot.period - right.slot.period || left.session_id.localeCompare(right.session_id));
@@ -261,7 +269,7 @@ function sessionPlacement(item: Session, dayItems: Session[]) {
    const sessionStart = session.slot.period;
    const lane = lanes.findIndex(lastEnd => lastEnd <= sessionStart);
    const laneIndex = lane === -1 ? lanes.length : lane;
-   lanes[laneIndex] = sessionStart + (session.course?.duration ?? 1);
+   lanes[laneIndex] = sessionStart + session.duration;
    laneById.set(session.session_id, laneIndex);
  });
  return { duration, lane: laneById.get(item.session_id) ?? 0, laneCount: Math.max(lanes.length, 1) };

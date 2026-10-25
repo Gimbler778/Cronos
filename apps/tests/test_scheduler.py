@@ -1,5 +1,5 @@
 from apps.api.domain import Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
-from apps.api.scheduler import expand_sessions, optimize, validate_candidate
+from apps.api.scheduler import expand_sessions, optimize, soft_penalty, validate_candidate
 
 
 def sample() -> Dataset:
@@ -30,8 +30,35 @@ def test_valid_candidate_has_no_hard_violations():
 
 def test_required_sessions_are_expanded():
     data = sample()
+    data.courses[0].sessions_per_week = 99
     data.teaching_requirements[0].required_sessions = 3
     assert len(expand_sessions(data)) == 3
+
+
+def test_requirement_inherits_course_duration_when_omitted():
+    data = sample()
+    data.courses[0].duration = 2
+    session = expand_sessions(data)[0]
+    assert session.duration == 2
+
+
+def test_non_consecutive_course_does_not_require_a_complete_block():
+    data = sample()
+    data.courses[0].duration = 2
+    data.courses[0].consecutive_slots_required = False
+    sessions = expand_sessions(data)
+    candidate = optimize(data, population_size=4, max_generations=1, random_seed=1).candidate
+    assert candidate is not None
+    assert validate_candidate(data, sessions, candidate).hard_violations == 0
+
+
+def test_faculty_without_preferences_are_not_penalized():
+    data = sample()
+    data.faculty.append(Faculty(id="f2", name="Other Faculty", department="CS", preferred_slots={"a"}))
+    sessions = expand_sessions(data)
+    candidate = optimize(data, population_size=4, max_generations=1, random_seed=1).candidate
+    assert candidate is not None
+    assert soft_penalty(data, sessions, candidate, {}) == 0
 
 
 def test_ga_preserves_required_session_identity_after_operators():
@@ -49,3 +76,23 @@ def test_optimizer_retains_feasible_seed_across_repeated_runs():
         assert result.status == "feasible"
         assert result.candidate is not None
         assert result.candidate.hard_violations == 0
+
+
+def test_unseeded_optimizer_can_construct_a_feasible_schedule():
+    result = optimize(sample(), population_size=6, max_generations=4, random_seed=42, use_greedy_seed=False)
+    assert result.status == "feasible"
+    assert result.candidate is not None
+    assert result.candidate.hard_violations == 0
+
+
+def test_optimizer_does_not_stop_at_first_feasible_generation():
+    result = optimize(sample(), population_size=10, max_generations=3, random_seed=42)
+    assert result.status == "feasible"
+    assert result.generations == 3
+    assert len(result.history) == 4
+
+
+def test_optimizer_honors_no_improvement_budget():
+    result = optimize(sample(), population_size=10, max_generations=20, random_seed=42, no_improvement_generations=1)
+    assert result.status == "feasible"
+    assert result.generations < 20

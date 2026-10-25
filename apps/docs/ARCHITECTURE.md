@@ -82,8 +82,9 @@ depending on process memory. Vercel deployments must provide `DATABASE_URL`; SQL
 retained only for local development. Optimization is intentionally bounded by request
 validation for this college-scale demo; larger workloads should move to background jobs.
 
-## Later deployment phase
-Background jobs, authentication, rate limiting, normalized migration rollout, and monitoring.
+## Later hardening phase
+Background jobs, authentication, per-user workspaces, rate limiting, normalized migration
+rollout, release tagging, and monitoring.
 
 ## Future product extensions
 Manual editing with re-validation, spreadsheet import, PDF export, and alternative optimizer comparison.

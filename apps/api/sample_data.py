@@ -51,3 +51,64 @@ def sample_dataset() -> Dataset:
             TeachingRequirement(id="tr6", course_id="c1", section_id="s3", faculty_id="f3", required_sessions=2),
         ],
     )
+
+
+def benchmark_dataset() -> Dataset:
+    """A constrained benchmark kept separate from the small UI demo dataset."""
+    days = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+    time_slots = [
+        TimeSlot(
+            id=f"{day[:3].lower()}-{period}",
+            day=day,
+            period=period,
+            start_time=f"{8 + period:02d}:00",
+            end_time=f"{9 + period:02d}:00",
+        )
+        for day in days
+        for period in range(1, 5)
+    ]
+    return Dataset(
+        faculty=[
+            Faculty(id="bf1", name="Benchmark Ada", department="CS", preferred_slots={"mon-1", "wed-1"}, daily_load_limit=4, unavailable_slots={"fri-4"}),
+            Faculty(id="bf2", name="Benchmark Grace", department="CS", preferred_slots={"tue-1", "thu-1"}, daily_load_limit=4, unavailable_slots={"mon-4"}),
+            Faculty(id="bf3", name="Benchmark Alan", department="Math", preferred_slots={"wed-2", "fri-1"}, daily_load_limit=4, unavailable_slots={"tue-4"}),
+            Faculty(id="bf4", name="Benchmark Katherine", department="Physics", preferred_slots={"mon-2", "thu-2"}, daily_load_limit=4, unavailable_slots={"wed-4"}),
+            Faculty(id="bf5", name="Benchmark Tim", department="CS", preferred_slots={"tue-2", "fri-2"}, daily_load_limit=4, unavailable_slots={"thu-4"}),
+        ],
+        rooms=[
+            Room(id="br1", name="Benchmark Lab 1", capacity=35, room_type="lab", unavailable_slots={"mon-4", "wed-4"}),
+            Room(id="br2", name="Benchmark Lab 2", capacity=45, room_type="lab", unavailable_slots={"tue-4", "thu-4"}),
+            Room(id="br3", name="Benchmark Lecture 1", capacity=90, room_type="lecture", unavailable_slots={"fri-4"}),
+            Room(id="br4", name="Benchmark Lecture 2", capacity=55, room_type="lecture", unavailable_slots={"mon-4", "wed-4"}),
+        ],
+        sections=[
+            Section(id="bs1", name="Benchmark CS A", size=32, department="CS", semester="1", unavailable_slots={"mon-4"}),
+            Section(id="bs2", name="Benchmark CS B", size=28, department="CS", semester="1", unavailable_slots={"tue-4"}),
+            Section(id="bs3", name="Benchmark CS C", size=40, department="CS", semester="2", unavailable_slots={"wed-4"}),
+            Section(id="bs4", name="Benchmark Math", size=38, department="Math", semester="1", unavailable_slots={"thu-4"}),
+            Section(id="bs5", name="Benchmark Physics", size=45, department="Physics", semester="1", unavailable_slots={"fri-4"}),
+        ],
+        courses=[
+            Course(id="bc1", code="B-CS101", name="Benchmark Programming", required_room_type="lab", duration=1),
+            Course(id="bc2", code="B-CS201", name="Benchmark Algorithms", required_room_type="lecture", duration=1),
+            Course(id="bc3", code="B-CS202", name="Benchmark Database Lab", required_room_type="lab", duration=2, consecutive_slots_required=True),
+            Course(id="bc4", code="B-MATH101", name="Benchmark Discrete Math", required_room_type="lecture", duration=1),
+            Course(id="bc5", code="B-PHY101", name="Benchmark Physics Lab", required_room_type="lab", duration=2, consecutive_slots_required=True),
+            Course(id="bc6", code="B-CS301", name="Benchmark Networks", required_room_type="lecture", duration=1),
+        ],
+        time_slots=time_slots,
+        teaching_requirements=[
+            TeachingRequirement(id="btr1", course_id="bc1", section_id="bs1", faculty_id="bf1", required_sessions=3),
+            TeachingRequirement(id="btr2", course_id="bc2", section_id="bs1", faculty_id="bf2", required_sessions=2),
+            TeachingRequirement(id="btr3", course_id="bc3", section_id="bs1", faculty_id="bf5", required_sessions=2),
+            TeachingRequirement(id="btr4", course_id="bc1", section_id="bs2", faculty_id="bf1", required_sessions=3),
+            TeachingRequirement(id="btr5", course_id="bc2", section_id="bs2", faculty_id="bf2", required_sessions=2),
+            TeachingRequirement(id="btr6", course_id="bc6", section_id="bs2", faculty_id="bf5", required_sessions=2),
+            TeachingRequirement(id="btr7", course_id="bc3", section_id="bs3", faculty_id="bf5", required_sessions=2),
+            TeachingRequirement(id="btr8", course_id="bc6", section_id="bs3", faculty_id="bf2", required_sessions=2),
+            TeachingRequirement(id="btr9", course_id="bc4", section_id="bs4", faculty_id="bf3", required_sessions=3),
+            TeachingRequirement(id="btr10", course_id="bc5", section_id="bs4", faculty_id="bf4", required_sessions=2),
+            TeachingRequirement(id="btr11", course_id="bc4", section_id="bs5", faculty_id="bf3", required_sessions=3),
+            TeachingRequirement(id="btr12", course_id="bc5", section_id="bs5", faculty_id="bf4", required_sessions=2),
+        ],
+    )
