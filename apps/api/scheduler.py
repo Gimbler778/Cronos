@@ -203,6 +203,28 @@ def _tournament(rng: random.Random, population: list[Candidate], size: int) -> C
     return min(rng.sample(population, min(size, len(population))), key=lambda item: item.score())
 
 
+def _crossover_candidate(
+    rng: random.Random,
+    sessions: list[Session],
+    left: Candidate,
+    right: Candidate,
+) -> Candidate:
+    """Combine parents by session identity rather than chromosome position."""
+    left_by_id = {assignment.session_id: assignment for assignment in left.assignments}
+    right_by_id = {assignment.session_id: assignment for assignment in right.assignments}
+    assignments: list[Assignment] = []
+    for session in sessions:
+        options = [
+            assignment
+            for assignment in (left_by_id.get(session.id), right_by_id.get(session.id))
+            if assignment is not None
+        ]
+        if options:
+            chosen = rng.choice(options)
+            assignments.append(Assignment(chosen.session_id, chosen.slot_id, chosen.room_id))
+    return Candidate(assignments)
+
+
 def _mutate_candidate(
     rng: random.Random,
     data: Dataset,
@@ -478,9 +500,11 @@ def optimize(
         while len(next_population) < len(population):
             left = _tournament(rng, population, tournament_size)
             right = _tournament(rng, population, tournament_size)
-            cut = rng.randrange(len(sessions) + 1)
-            child_assignments = left.assignments[:cut] + right.assignments[cut:] if rng.random() < crossover_probability else [Assignment(a.session_id, a.slot_id, a.room_id) for a in left.assignments]
-            child = Candidate(child_assignments)
+            child = (
+                _crossover_candidate(rng, sessions, left, right)
+                if rng.random() < crossover_probability
+                else _copy_candidate(left)
+            )
             validate_candidate(data, sessions, child)
             soft_penalty(data, sessions, child, weights)
             if rng.random() < mutation_probability:

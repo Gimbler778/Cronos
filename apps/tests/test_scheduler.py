@@ -1,5 +1,7 @@
-from apps.api.domain import Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
-from apps.api.scheduler import expand_sessions, optimize, soft_penalty, validate_candidate
+import random
+
+from apps.api.domain import Assignment, Candidate, Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
+from apps.api.scheduler import _crossover_candidate, expand_sessions, optimize, soft_penalty, validate_candidate
 
 
 def sample() -> Dataset:
@@ -67,6 +69,23 @@ def test_ga_preserves_required_session_identity_after_operators():
     result = optimize(data, population_size=8, max_generations=8, random_seed=7)
     assert result.candidate is not None
     assert sorted(item.session_id for item in result.candidate.assignments) == ["tr1:1", "tr1:2", "tr1:3"]
+
+
+def test_crossover_preserves_session_identity_when_parent_order_differs():
+    data = sample()
+    data.teaching_requirements[0].required_sessions = 2
+    sessions = expand_sessions(data)
+    left = Candidate([
+        Assignment("tr1:1", "a", "r1"),
+        Assignment("tr1:2", "b", "r1"),
+    ])
+    right = Candidate([
+        Assignment("tr1:2", "a", "r1"),
+        Assignment("tr1:1", "b", "r1"),
+    ])
+    child = _crossover_candidate(random.Random(42), sessions, left, right)
+    assert [item.session_id for item in child.assignments] == ["tr1:1", "tr1:2"]
+    assert len({item.session_id for item in child.assignments}) == len(sessions)
 
 
 def test_optimizer_retains_feasible_seed_across_repeated_runs():
