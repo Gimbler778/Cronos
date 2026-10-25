@@ -7,12 +7,12 @@
     },
     "backend": {
       "root": ".",
-      "entrypoint": "api.index:app"
-    }
-  },
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
+      "entrypoint": "api.index:app",
+      "functions": {
+        "api/index.py": {
+          "maxDuration": 60
+        }
+      }
     }
   },
   "rewrites": [
