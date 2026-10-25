@@ -56,10 +56,10 @@ Authentication, background jobs, and normalized migration rollout remain later-p
 |---|---|---|---|
 | Definition | Academic entities, hard/soft constraints, sample dataset | `apps/api/domain.py`, sample endpoint | Confirm institutional data requirements |
 | Data model | Pydantic dataset and durable storage adapter | SQLite fallback; optional PostgreSQL; Alembic migration applies locally | Normalize repositories further |
-| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 29 tests | Add more malformed-slot fixtures |
+| Constraint checker | Capacity/type, availability, overlap, slot-block and session-count checks | Backend suite passes 30 tests | Add more malformed-slot fixtures |
 | Baseline | Seeded randomized candidate and greedy baseline | `apps/evaluate.py`; backend tests | Tune larger datasets |
 | GA | Selection, crossover, mutation, elitism, bounded repair | Required session identity and reproducibility tests pass | Tune larger datasets |
-| API | Validation, CRUD, runs, analytics, schedule, CSV, persistence semantics | 29 backend tests pass | Add auth/rate limits only if required |
+| API | Validation, CRUD, runs, analytics, schedule, CSV, persistence semantics, local CORS | 30 backend tests pass | Add auth/rate limits only if required |
 | UI | Guided record additions, JSON editor, generation controls, filtered schedule, analytics, and async states | Next.js production build and Vitest suite pass | Add browser-level tests if needed |
 | Evaluation | Five-seed comparison on documented sample | Baseline feasible 5/5; greedy-seeded GA feasible 5/5 | Test larger, harder datasets |
 
@@ -99,7 +99,7 @@ metrics in `apps/evaluation-results.json`. These results are not a global-optima
 claim.
 
 ## 12. Testing
-The backend suite has 29 passing tests covering seeded reproducibility, required-session
+The backend suite has 30 passing tests covering seeded reproducibility, required-session
 preservation, hard constraints, API flow, CRUD, analytics, export filters, invalid
 references, duplicate requirement IDs, baseline bounds, duplicate slot positions, run snapshot isolation, and the
 clear/reset persistence semantics. The frontend suite has 3 passing schedule-filter tests.

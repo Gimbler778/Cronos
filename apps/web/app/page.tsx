@@ -3,7 +3,13 @@
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { filterSchedule } from "./schedule";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? (typeof window === "undefined" ? "http://127.0.0.1:8000" : "");
+const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? (
+  typeof window === "undefined"
+    ? "http://127.0.0.1:8000"
+    : ["localhost", "127.0.0.1"].includes(window.location.hostname)
+      ? "http://127.0.0.1:8000"
+      : ""
+);
 type View = "overview" | "setup" | "section" | "faculty" | "room" | "analytics";
 type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "teaching-requirements";
 type Violation = { code: string; entity_id?: string; slot?: string };
@@ -11,7 +17,14 @@ type Run = { id: string; status: string; hard_violations: number | null; soft_pe
 type Data = { faculty: Record<string, unknown>[]; rooms: Record<string, unknown>[]; sections: Record<string, unknown>[]; courses: Record<string, unknown>[]; time_slots: Record<string, unknown>[]; teaching_requirements: Record<string, unknown>[] };
 type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; duration: number; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
 type Point = { generation: number; hard_violations: number; soft_penalty: number };
-type Analytics = { sessions_by_slot: Record<string, number>; sessions_by_room: Record<string, number>; sessions_by_section: Record<string, number> };
+type Analytics = {
+  sessions_by_slot: Record<string, number>;
+  sessions_by_room: Record<string, number>;
+  sessions_by_section: Record<string, number>;
+  slot_labels?: Record<string, string>;
+  room_labels?: Record<string, string>;
+  section_labels?: Record<string, string>;
+};
 type Config = { population_size: number; max_generations: number; crossover_probability: number; mutation_probability: number; swap_probability: number; tournament_size: number; elite_count: number; random_seed: number; no_improvement_generations: number; target_soft_penalty: number | null; use_greedy_seed: boolean; soft_weights: Record<string, number> };
 
 const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -335,8 +348,30 @@ function TimetableSummary({ schedule, run, openTimetable }: { schedule: Session[
 }
 
 function AnalyticsPanel({ analytics, history, run }: { analytics: Analytics | null; history: Point[]; run: Run | null }) {
-  return <div className="analytics-grid"><div className="panel"><h3>Fitness progression</h3>{history.length ? history.map(point => <div className="bar-row" key={point.generation}><span>G{point.generation}</span><div><i style={{ width: `${Math.min(100, point.hard_violations * 20 + point.soft_penalty)}%` }} /></div><b>{point.hard_violations} / {point.soft_penalty.toFixed(1)}</b></div>) : <p className="empty">Generate a timetable to see metrics.</p>}{run?.violations?.length ? <ViolationList violations={run.violations} /> : null}</div><div className="panel"><h3>Resource distribution</h3>{analytics ? <><Distribution title="By slot" values={analytics.sessions_by_slot} /><Distribution title="By room" values={analytics.sessions_by_room} /><Distribution title="By section" values={analytics.sessions_by_section} /></> : <p className="empty">Run analytics will appear here after generation.</p>}</div></div>;
+  const maxPenalty = Math.max(...history.map(point => point.soft_penalty), 1);
+  return <div className="analytics-grid">
+    <div className="panel">
+      <div className="panel-head"><div><h3>Fitness progression</h3><p className="analytics-caption">Lower penalty is better</p></div>{run && <span className={`badge ${run.status}`}>{run.status}</span>}</div>
+      {history.length ? <><div className="analytics-summary"><strong>{history.length === 1 ? "Initial solution" : `${history.length} generations recorded`}</strong><span aria-hidden="true"> · </span><span>{history[history.length - 1].hard_violations} hard · {history[history.length - 1].soft_penalty.toFixed(1)} soft</span></div><div className="bar-list">{history.map(point => <div className="bar-row" key={point.generation}><span>Gen {point.generation}</span><div title={`Generation ${point.generation}: ${point.soft_penalty.toFixed(1)} soft penalty`}><i style={{ width: `${Math.max(4, Math.min(100, point.soft_penalty / maxPenalty * 100))}%` }} /></div><b>{point.hard_violations} / {point.soft_penalty.toFixed(1)}</b></div>)}</div></> : <p className="empty">Generate a timetable to see metrics.</p>}
+      {run?.violations?.length ? <ViolationList violations={run.violations} /> : null}
+    </div>
+    <div className="panel"><h3>Resource distribution</h3>{analytics ? <><Distribution title="By time slot" values={analytics.sessions_by_slot} labels={analytics.slot_labels} sort="slot" /><Distribution title="By room" values={analytics.sessions_by_room} labels={analytics.room_labels} /><Distribution title="By section" values={analytics.sessions_by_section} labels={analytics.section_labels} /></> : <p className="empty">Run analytics will appear here after generation.</p>}</div>
+  </div>;
 }
 
-function Distribution({ title, values }: { title: string; values: Record<string, number> }) { return <div className="distribution"><strong>{title}</strong>{Object.keys(values).length ? Object.entries(values).map(([key, value]) => <div key={key}><span>{key}</span><b>{value}</b></div>) : <p className="empty">No sessions</p>}</div>; }
+function Distribution({ title, values, labels = {}, sort }: { title: string; values: Record<string, number>; labels?: Record<string, string>; sort?: "slot" }) {
+  const entries = Object.entries(values).sort(([left], [right]) => {
+    const leftLabel = labels[left] ?? left;
+    const rightLabel = labels[right] ?? right;
+    if (sort === "slot") {
+      const leftDay = dayOrder.indexOf(leftLabel.split(" · ")[0]);
+      const rightDay = dayOrder.indexOf(rightLabel.split(" · ")[0]);
+      const dayDifference = (leftDay === -1 ? dayOrder.length : leftDay) - (rightDay === -1 ? dayOrder.length : rightDay);
+      if (dayDifference) return dayDifference;
+      return Number(leftLabel.match(/Period (\d+)/)?.[1] ?? 0) - Number(rightLabel.match(/Period (\d+)/)?.[1] ?? 0);
+    }
+    return leftLabel.localeCompare(rightLabel);
+  });
+  return <div className="distribution"><strong>{title}</strong>{entries.length ? entries.map(([key, value]) => <div key={key}><span>{labels[key] ?? key}</span><b>{value}</b></div>) : <p className="empty">No sessions</p>}</div>;
+}
 function Metric({ label, value }: { label: string; value: string | number }) { return <div><span>{label}</span><strong>{value}</strong></div>; }

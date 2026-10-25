@@ -49,18 +49,14 @@ apps/tests/
 ```text
 apps/web/app/
   page.tsx
-  setup/page.tsx
-  timetable/page.tsx
-  analytics/page.tsx
+  schedule.ts
+  globals.css
 apps/web/components/
-  ui/
-  timetable/
-  analytics/
-  forms/
-apps/web/lib/
-  api.ts
-  types.ts
+  (future extracted UI components)
 ```
+
+The current MVP keeps the dashboard views in `apps/web/app/page.tsx`; the sidebar switches
+between overview, data setup, timetable, and analytics panels without separate routes.
 
 ## Data flow
 1. Admin enters/loads data.

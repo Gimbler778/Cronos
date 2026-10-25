@@ -12,11 +12,12 @@ from apps.api.storage import StorageError
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = FastAPI(title="Cronos Timetable Optimizer", version="0.1.0")
-allowed_origins = [
+configured_origins = {
     origin.strip()
-    for origin in os.getenv("CRONOS_WEB_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    for origin in os.getenv("CRONOS_WEB_ORIGINS", "").split(",")
     if origin.strip()
-]
+}
+allowed_origins = sorted(configured_origins | {"http://localhost:3000", "http://127.0.0.1:3000"})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

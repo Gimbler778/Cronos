@@ -9,6 +9,18 @@ def test_models_compatibility_endpoint():
     assert response.json()["data"][0]["id"] == "cronos-optimizer"
 
 
+def test_local_frontend_origin_is_allowed_even_with_deployment_origins_configured():
+    response = TestClient(app).options(
+        "/api/v1/data/status",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
 def test_sample_api_flow():
     client = TestClient(app)
     assert client.post("/api/v1/sample-data").status_code == 200
@@ -93,7 +105,7 @@ def test_collection_crud_and_run_analytics():
     assert client.get("/api/v1/optimization-runs").status_code == 200
     analytics = client.get(f"/api/v1/optimization-runs/{run['id']}/analytics")
     assert analytics.status_code == 200
-    assert "sessions_by_slot" in analytics.json()
+    assert {"sessions_by_slot", "slot_labels", "room_labels", "section_labels"} <= analytics.json().keys()
 
 
 def test_request_bounds_and_baseline():

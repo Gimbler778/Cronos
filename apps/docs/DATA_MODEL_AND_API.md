@@ -22,6 +22,7 @@ Base prefix: `/api/v1`; JSON; Pydantic validation; consistent errors; never impl
 - `GET /health` — application health
 - `GET /api/v1/health` — application and persistence health
 - `GET/PUT/DELETE /api/v1/data` — read, replace, or completely clear the saved dataset and generated timetables
+- `GET /api/v1/data/status` — report whether a dataset has ever been saved; cleared workspaces remain initialized
 - `GET/POST /api/v1/faculty`
 - `GET/POST /api/v1/rooms`
 - `GET/POST /api/v1/sections`
@@ -86,6 +87,13 @@ Runs currently execute synchronously for small local datasets. Background jobs, 
 and rate limits remain future work. On Vercel, configure `DATABASE_URL` and verify
 `/api/v1/health` before using data endpoints; this endpoint performs a database read and
 returns `503 STORAGE_UNAVAILABLE` when PostgreSQL is unavailable.
+
+The analytics response includes generation history, session counts grouped by slot, room, and
+section, plus label maps (`slot_labels`, `room_labels`, and `section_labels`) used by the UI
+to display readable names such as `Monday · Period 1` instead of internal IDs.
+
+For local browser access, the API permits `http://localhost:3000` and
+`http://127.0.0.1:3000` in addition to origins configured through `CRONOS_WEB_ORIGINS`.
 
 The Data setup page exposes the destructive clear operation behind a confirmation prompt. It
 removes the dataset and all saved optimization runs/timetables; loading sample data remains an

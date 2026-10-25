@@ -58,11 +58,14 @@ The current UI uses API-backed custom visualizations and CSS motion with reduced
 no chart or animation dependency is required.
 Typical URL: `http://localhost:3000`.
 
-Optionally create `.env.local`:
+The local frontend automatically uses `http://127.0.0.1:8000` when opened on localhost.
+If you need to override that behavior, create `.env.local`:
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 Do not put secrets in public environment variables.
+The API always allows `http://localhost:3000` and `http://127.0.0.1:3000` locally; deployment
+origins can be added through `CRONOS_WEB_ORIGINS`.
 
 ## Tests
 Backend: `python -m pytest apps\tests -q`
@@ -93,7 +96,12 @@ root `README.md` for the current live URL and deployment details.
 8. Experiments and report.
 
 ## Troubleshooting
-Check API base URL and CORS if the web app cannot reach the API. If persistence fails, verify `DATABASE_URL`, TLS settings, and that the Neon project is active. Reduce GA population/generations during development. For infeasible results, inspect validation and diagnostics before increasing runtime.
+If the web app cannot reach the API, confirm that Uvicorn is running on port 8000, the
+frontend is on port 3000, and any custom `NEXT_PUBLIC_API_BASE_URL` is correct. Local CORS
+origins are allowed by default; deployment origins must be listed in `CRONOS_WEB_ORIGINS`.
+If persistence fails, verify `DATABASE_URL`, TLS settings, and that the Neon project is
+active. Reduce GA population/generations during development. For infeasible results, inspect
+validation and diagnostics before increasing runtime.
 
 The MVP is implemented and verified locally, and the hosted configuration is deployed.
 Authentication, background jobs, normalized production migration rollout, rate limiting,

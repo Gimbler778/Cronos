@@ -57,7 +57,7 @@ npm run build:web
 npm run evaluate
 ```
 
-The current automated checks include 29 backend tests, 3 frontend tests, a production build,
+The current automated checks include 30 backend tests, 3 frontend tests, a production build,
 and the recorded multi-seed evaluation.
 
 ## Deploy the complete app to Vercel
@@ -82,6 +82,11 @@ the second checks database-backed storage. A storage failure returns HTTP 503 wi
 The web app falls back to same-origin API requests in production, so
 `NEXT_PUBLIC_API_BASE_URL` may be omitted when the frontend and API share a Vercel
 deployment. Set it explicitly when hosting them on different origins.
+
+For local development, the frontend uses `http://127.0.0.1:8000` automatically when opened
+on `localhost` or `127.0.0.1`. The API always allows the local frontend origins
+`http://localhost:3000` and `http://127.0.0.1:3000` in addition to any origins listed in
+`CRONOS_WEB_ORIGINS`.
 
 Do not configure `CRONOS_SQLITE_PATH` in Vercel. SQLite remains available for local
 development only; Vercel instances are stateless and their filesystem is not durable.

@@ -403,16 +403,34 @@ def get_analytics(run_id: str) -> dict:
     by_slot: dict[str, int] = {}
     by_room: dict[str, int] = {}
     by_section: dict[str, int] = {}
+    slot_labels: dict[str, str] = {}
+    room_labels: dict[str, str] = {}
+    section_labels: dict[str, str] = {}
     if candidate:
         run_dataset = Dataset.model_validate(record["dataset"])
         sessions = {item.id: item for item in expand_sessions(run_dataset)}
+        slot_labels = {
+            item.id: f"{item.day} · Period {item.period}"
+            for item in run_dataset.time_slots
+        }
+        room_labels = {item.id: item.name for item in run_dataset.rooms}
+        section_labels = {item.id: item.name for item in run_dataset.sections}
         for assignment in candidate.assignments:
             by_slot[assignment.slot_id] = by_slot.get(assignment.slot_id, 0) + 1
             by_room[assignment.room_id] = by_room.get(assignment.room_id, 0) + 1
             session = sessions.get(assignment.session_id)
             if session:
                 by_section[session.section_id] = by_section.get(session.section_id, 0) + 1
-    return {"run_id": run_id, "history": history, "sessions_by_slot": by_slot, "sessions_by_room": by_room, "sessions_by_section": by_section}
+    return {
+        "run_id": run_id,
+        "history": history,
+        "sessions_by_slot": by_slot,
+        "sessions_by_room": by_room,
+        "sessions_by_section": by_section,
+        "slot_labels": slot_labels,
+        "room_labels": room_labels,
+        "section_labels": section_labels,
+    }
 
 
 def _export_matches(row: dict[str, object], filters: dict[str, str]) -> bool:

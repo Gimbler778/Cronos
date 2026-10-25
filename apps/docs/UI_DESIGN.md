@@ -32,8 +32,10 @@ violations, soft penalty, and diagnostics. Technical GA terminology remains in a
 controls and analytics, while the primary overview uses plain-language feedback copy.
 
 ### Analytics
-Custom API-backed bars for fitness by generation and resource distributions by slot, room,
-and section. Use actual API data and explicit empty states; richer chart libraries remain optional.
+Custom API-backed bars for fitness by generation and resource distributions by readable time
+slot, room, and section labels. Show whether lower penalty is better, identify a single
+generation as an initial solution, and use actual API data with explicit empty states; richer
+chart libraries remain optional.
 
 ### Export
 CSV export for the selected run with clear status feedback.
