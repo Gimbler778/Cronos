@@ -15,7 +15,7 @@ type Entity = "faculty" | "rooms" | "sections" | "courses" | "time-slots" | "tea
 type Violation = { code: string; entity_id?: string; slot?: string };
 type Run = { id: string; status: string; hard_violations: number | null; soft_penalty: number | null; runtime_ms: number; generations: number; diagnostics: string[]; violations?: Violation[] };
 type Data = { faculty: Record<string, unknown>[]; rooms: Record<string, unknown>[]; sections: Record<string, unknown>[]; courses: Record<string, unknown>[]; time_slots: Record<string, unknown>[]; teaching_requirements: Record<string, unknown>[] };
-type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; duration: number; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
+type Session = { session_id: string; slot_id: string; room_id: string; course_id: string; section_id: string; faculty_id: string; duration: number; start_time?: string; end_time?: string; slot: { day: string; period: number; start_time: string; end_time: string }; room: { id: string; name: string }; course?: { id: string; code: string; name: string; duration?: number }; section?: { id: string; name: string }; faculty?: { id: string; name: string } };
 type Point = { generation: number; hard_violations: number; soft_penalty: number };
 type Analytics = {
   sessions_by_slot: Record<string, number>;
@@ -267,25 +267,80 @@ function ViolationList({ violations }: { violations: Violation[] }) {
   return <div className="violations"><strong>Where conflicts occur</strong>{violations.slice(0, 12).map((violation, index) => <div className="violation-row" key={`${violation.code}-${violation.entity_id ?? ""}-${violation.slot ?? ""}-${index}`}><b>{violation.code}</b><span>{violation.entity_id ?? "—"}{violation.slot ? ` · ${violation.slot}` : ""}</span></div>)}{violations.length > 12 && <small>Showing 12 of {violations.length} violations.</small>}</div>;
 }
 
-function sessionPlacement(item: Session, dayItems: Session[]) {
- const duration = item.duration;
- const start = item.slot.period;
- const end = start + duration;
- const cluster = dayItems.filter(other => {
-   const otherEnd = other.slot.period + other.duration;
-   return other.slot.period < end && start < otherEnd;
- });
- const ordered = [...cluster].sort((left, right) => left.slot.period - right.slot.period || left.session_id.localeCompare(right.session_id));
- const lanes: number[] = [];
- const laneById = new Map<string, number>();
- ordered.forEach(session => {
-   const sessionStart = session.slot.period;
-   const lane = lanes.findIndex(lastEnd => lastEnd <= sessionStart);
-   const laneIndex = lane === -1 ? lanes.length : lane;
-   lanes[laneIndex] = sessionStart + session.duration;
-   laneById.set(session.session_id, laneIndex);
- });
- return { duration, lane: laneById.get(item.session_id) ?? 0, laneCount: Math.max(lanes.length, 1) };
+function computeDayPlacements(dayItems: Session[]): Map<string, { duration: number; lane: number; laneCount: number }> {
+  const result = new Map<string, { duration: number; lane: number; laneCount: number }>();
+  if (dayItems.length === 0) return result;
+
+  const sorted = [...dayItems].sort(
+    (a, b) =>
+      a.slot.period - b.slot.period ||
+      b.duration - a.duration ||
+      a.session_id.localeCompare(b.session_id)
+  );
+
+  const components: Session[][] = [];
+  let currentGroup: Session[] = [];
+  let currentGroupEnd = -1;
+
+  for (const item of sorted) {
+    const start = item.slot.period;
+    const end = start + item.duration;
+    if (currentGroup.length === 0) {
+      currentGroup.push(item);
+      currentGroupEnd = end;
+    } else if (start < currentGroupEnd) {
+      currentGroup.push(item);
+      currentGroupEnd = Math.max(currentGroupEnd, end);
+    } else {
+      components.push(currentGroup);
+      currentGroup = [item];
+      currentGroupEnd = end;
+    }
+  }
+  if (currentGroup.length > 0) {
+    components.push(currentGroup);
+  }
+
+  for (const component of components) {
+    const laneEnds: number[] = [];
+    const assignments: Array<{ item: Session; lane: number }> = [];
+
+    const compSorted = [...component].sort(
+      (a, b) =>
+        a.slot.period - b.slot.period ||
+        b.duration - a.duration ||
+        a.session_id.localeCompare(b.session_id)
+    );
+
+    for (const item of compSorted) {
+      const start = item.slot.period;
+      const end = start + item.duration;
+      let laneIndex = -1;
+      for (let i = 0; i < laneEnds.length; i++) {
+        if (laneEnds[i] <= start) {
+          laneIndex = i;
+          laneEnds[i] = end;
+          break;
+        }
+      }
+      if (laneIndex === -1) {
+        laneIndex = laneEnds.length;
+        laneEnds.push(end);
+      }
+      assignments.push({ item, lane: laneIndex });
+    }
+
+    const totalLanes = Math.max(laneEnds.length, 1);
+    for (const { item, lane } of assignments) {
+      result.set(item.session_id, {
+        duration: item.duration,
+        lane,
+        laneCount: totalLanes,
+      });
+    }
+  }
+
+  return result;
 }
 
 function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { schedule: Session[]; run: Run | null; filter: string; setFilter: (value: string) => void; panel: View; setPanel: (value: View) => void }) {
@@ -333,7 +388,7 @@ function SchedulePanel({ schedule, run, filter, setFilter, panel, setPanel }: { 
      <div className="label-group"><b>Rooms</b>{roomLabels.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
      <div className="label-group"><b>Sections</b>{sections.map(([id, name]) => <span key={id}><code>{id}</code> {name}</span>)}</div>
    </div>
-   {schedule.length === 0 ? <p className="empty">Generate a timetable to see scheduled sessions.</p> : visibleSchedule.length === 0 ? <p className="empty">No sessions match these filters.</p> : <div className="timeline-scroll"><div className="timeline-board" style={{ "--period-count": Math.max(periods.length, 1), "--day-count": Math.max(days.length, 1) } as CSSProperties}><div className="timeline-header"><div className="timeline-corner">TIME</div>{days.map(day => <div className="calendar-day" key={day}>{day}</div>)}</div><div className="timeline-body"><div className="timeline-rail">{periods.map(period => <div className="timeline-time" key={period}><span>P{period}</span><small>Period {period}</small><small>{schedule.find(item => item.slot.period === period)?.slot.start_time}</small></div>)}</div>{days.map(day => { const dayItems = visibleSchedule.filter(item => item.slot.day === day); return <div className="timeline-day" key={day}><div className="timeline-track">{dayItems.map(item => { const placement = sessionPlacement(item, dayItems); const timeLabel = `${item.slot.start_time} – ${item.slot.end_time}`;    return <div className="session-card" key={item.session_id} title={timeLabel} aria-label={`${item.course_id}, ${timeLabel}`} tabIndex={0} style={{ "--session-top": (item.slot.period - 1) * 132, "--session-duration": placement.duration, "--session-lane": placement.lane, "--session-lanes": placement.laneCount } as CSSProperties}><strong>{item.course_id}</strong>{item.course && <span className="session-course">{item.course.code}</span>}<span className="session-time">{timeLabel}</span><span><b>{item.room.id}</b></span><small><b>{item.section_id}</b></small><small><b>{item.faculty_id}</b></small></div>; })}</div></div>; })}</div></div></div>}
+   {schedule.length === 0 ? <p className="empty">Generate a timetable to see scheduled sessions.</p> : visibleSchedule.length === 0 ? <p className="empty">No sessions match these filters.</p> : <div className="timeline-scroll"><div className="timeline-board" style={{ "--period-count": Math.max(periods.length, 1), "--day-count": Math.max(days.length, 1) } as CSSProperties}><div className="timeline-header"><div className="timeline-corner">TIME</div>{days.map(day => <div className="calendar-day" key={day}>{day}</div>)}</div><div className="timeline-body"><div className="timeline-rail">{periods.map(period => { const slot = schedule.find(item => item.slot.period === period)?.slot; return <div className="timeline-time" key={period}><span>P{period}</span><small>Period {period}</small><small className="timeline-slot-range">{slot ? `${slot.start_time} – ${slot.end_time}` : `Period ${period}`}</small></div>; })}</div>{days.map(day => { const dayItems = visibleSchedule.filter(item => item.slot.day === day); const placements = computeDayPlacements(dayItems); return <div className="timeline-day" key={day}><div className="timeline-track">{dayItems.map(item => { const placement = placements.get(item.session_id) ?? { duration: item.duration, lane: 0, laneCount: 1 }; const endSlot = schedule.find(s => s.slot.day === item.slot.day && s.slot.period === item.slot.period + item.duration - 1)?.slot; const startTime = item.start_time ?? item.slot.start_time; const endTime = item.end_time ?? endSlot?.end_time ?? item.slot.end_time; const timeLabel = `${startTime} – ${endTime}`; return <div className="session-card" key={item.session_id} title={timeLabel} aria-label={`${item.course_id}, ${timeLabel}`} tabIndex={0} style={{ "--session-top": (item.slot.period - 1) * 132, "--session-duration": placement.duration, "--session-lane": placement.lane, "--session-lanes": placement.laneCount } as CSSProperties}><strong>{item.course_id}</strong>{item.course && <span className="session-course">{item.course.code}</span>}<span className="session-time">{timeLabel}</span><span><b>{item.room.id}</b></span><small><b>{item.section_id}</b></small><small><b>{item.faculty_id}</b></small></div>; })}</div></div>; })}</div></div></div>}
  </div>;
 }
 

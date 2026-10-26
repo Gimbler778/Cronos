@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from apps.api.domain import Assignment, Candidate, Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
 from apps.api.sample_data import sample_dataset
-from apps.api.scheduler import expand_sessions, greedy_baseline, optimize, randomized_baseline
+from apps.api.scheduler import _occupied_slots, expand_sessions, greedy_baseline, optimize, randomized_baseline
 from apps.api.storage import Storage
 
 router = APIRouter()
@@ -375,8 +375,8 @@ def get_schedule(run_id: str) -> dict:
         course = courses.get(session.course_id) if session else None
         section = sections.get(session.section_id) if session else None
         person = faculty.get(session.faculty_id) if session else None
-        if not (session and slot and room and course and section and person):
-            continue
+        occupied = _occupied_slots(run_dataset, item.slot_id, session.duration, session.consecutive_required)
+        end_slot = occupied[-1] if occupied else slot
         rows.append(
             {
                 **item.__dict__,
@@ -385,6 +385,8 @@ def get_schedule(run_id: str) -> dict:
                 "faculty_id": session.faculty_id,
                 "duration": session.duration,
                 "consecutive_required": session.consecutive_required,
+                "start_time": slot.start_time,
+                "end_time": end_slot.end_time,
                 "slot": slot.model_dump(mode="json"),
                 "room": room.model_dump(mode="json"),
                 "course": course.model_dump(mode="json"),
@@ -499,13 +501,15 @@ def export_csv(
         person = faculty_members.get(session.faculty_id) if session else None
         if not (session and slot and room_item and course and section_item and person):
             continue
+        occupied = _occupied_slots(run_dataset, assignment.slot_id, session.duration, session.consecutive_required)
+        end_slot = occupied[-1] if occupied else slot
         row = {
             "session_id": assignment.session_id,
             "day": slot.day,
             "period": slot.period,
             "period_label": f"P{slot.period}",
             "start_time": slot.start_time,
-            "end_time": slot.end_time,
+            "end_time": end_slot.end_time,
             "course_id": course.id,
             "course_code": course.code,
             "course_name": course.name,

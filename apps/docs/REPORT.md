@@ -71,12 +71,19 @@ Mutation/crossover: 0.15 / 0.8
 Seeds: 1, 7, 42, 99, 123
 Baseline: Greedy construction (`greedy_baseline`) per seed, evaluated with the same constraint checker
 
+The scheduler was optimized after initial evaluation: precomputed slot-lookup sets, interned
+slot-ID strings, and cached per-session valid-placement lists reduced redundant work inside
+the GA loop without altering the algorithm's genetic operators or constraint logic.
+
 ## 11. Results
+
+**Sample dataset** (3 faculty, 4 rooms, 3 sections, 4 courses, 15 slots, 6 requirements)
+
 | Metric | Baseline | GA |
 |---|---:|---:|
 | Hard violations | mean 0.0 | mean 0.0 |
 | Soft penalty | mean 7.0 | mean 7.0 |
-| Runtime | mean 45.4 ms | mean 3015.2 ms |
+| Runtime | mean 11.6 ms | mean 505.2 ms |
 | Feasible runs / total | 5 / 5 | 5 / 5 |
 
 The GA finds a feasible schedule on every recorded seed and matches the baseline's soft
@@ -84,19 +91,32 @@ penalty on the small documented sample. Feasibility alone no longer terminates t
 it continues until the soft target, generation limit, or no-improvement budget is reached.
 The sample still produces parity, so it is not evidence of global optimality.
 
+> **Runtime note.** An earlier un-optimized run recorded a mean GA runtime of ~3 015 ms on
+> the sample dataset. After precomputing slot-lookup sets, interning slot-ID strings, and
+> caching per-session valid-placement lists, the same five seeds now complete in a mean of
+> 505.2 ms — a ~6× speed-up with no change to constraint logic or genetic operators.
+
 The benchmark evaluator uses a separate constrained dataset with 5 faculty, 4 rooms,
 5 sections, 6 courses, 20 time slots, and 12 teaching requirements. Constructive greedy,
 greedy plus feasible local search, seeded GA, unseeded GA, and an unseeded GA without
 feasible local search are measured on the same seeds. The greedy-plus-local-search
 variant is included to avoid attributing all improvement over constructive greedy to
 genetic operators. Results therefore describe the complete hybrid optimizer; they do not
-prove that the GA component alone beats an equivalent local-search baseline. In the
-recorded run, constructive greedy achieved 31.0 mean soft penalty, greedy plus local
-search achieved 27.0, and seeded and unseeded GA achieved 22.4. The unseeded GA without
-local search achieved 26.2. All variants were feasible on 5/5 seeds. Runtime figures
-are environment-dependent, and the evaluator records the seed list and all variant
-metrics in `apps/evaluation-results.json`. These results are not a global-optimality
-claim.
+prove that the GA component alone beats an equivalent local-search baseline.
+
+**Benchmark dataset** (5 faculty, 4 rooms, 5 sections, 6 courses, 20 slots, 12 requirements)
+
+| Variant | Mean soft penalty | Mean runtime (ms) | Feasible |
+|---|---:|---:|---:|
+| Greedy (constructive) | 28.0 | 134.8 | 5 / 5 |
+| Greedy + local search | 25.0 | 280.6 | 5 / 5 |
+| GA seeded | 21.0 | 1 889.8 | 5 / 5 |
+| GA unseeded | 20.0 | 2 018.6 | 5 / 5 |
+| GA unseeded (no local search) | 20.4 | 1 782.6 | 5 / 5 |
+
+All variants were feasible on 5/5 seeds. Runtime figures are environment-dependent, and
+the evaluator records the seed list and all variant metrics in `apps/evaluation-results.json`.
+These results are not a global-optimality claim.
 
 ## 12. Testing
 The backend suite has 30 passing tests covering seeded reproducibility, required-session
@@ -116,13 +136,22 @@ ahead of soft penalties during candidate comparison. A later persistence fix rep
 frontend's repeated sample-data reload with a first-run seed, an explicit reset, and a
 latest-run restore so saved work survives refreshes.
 
+A timetable rendering bug caused multi-period sessions (duration > 1) to not span the
+correct number of time columns: session cards ending at, for example, 12:00 were
+visually clipped to the 11:xx row because the slot-range end boundary was not included
+in the column span calculation. This was corrected by computing the card height from
+`--session-duration × --period-height` and aligning the timeline rail column width to
+112 px so that `HH:MM–HH:MM` range labels fit without truncation. Session cards in both
+the calendar grid and the horizontal timeline view now correctly span their full duration.
+
 ## 14. Limitations
 A GA does not guarantee global optimality. Quality depends on encoding, parameters, data, and weights. Some datasets may be infeasible. Soft weights encode design choices.
 
 ## 15. Future work
 Manual editing with re-validation, larger benchmark datasets, background jobs, spreadsheet
 and PDF import/export, authentication, improved diagnostics, alternative optimizer
-comparison, and operational monitoring.
+comparison, operational monitoring, and further GA performance tuning for institutional-scale
+datasets (100+ sections).
 
 ## 16. Conclusion
 Cronos delivers a tested, deployed timetable MVP with explicit hard-constraint validation,
