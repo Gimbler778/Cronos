@@ -1,6 +1,7 @@
 import random
 
 from apps.api.domain import Assignment, Candidate, Dataset, Faculty, Room, Section, Course, TimeSlot, TeachingRequirement
+from apps.api.sample_data import sample_dataset
 from apps.api.scheduler import _crossover_candidate, expand_sessions, optimize, soft_penalty, validate_candidate
 
 
@@ -115,3 +116,11 @@ def test_optimizer_honors_no_improvement_budget():
     result = optimize(sample(), population_size=10, max_generations=20, random_seed=42, no_improvement_generations=1)
     assert result.status == "feasible"
     assert result.generations < 20
+
+
+def test_optimizer_history_does_not_report_stale_zero_penalties():
+    result = optimize(sample_dataset(), population_size=24, max_generations=4, random_seed=42)
+
+    assert result.candidate is not None
+    assert result.candidate.soft_penalty == 7
+    assert [point["soft_penalty"] for point in result.history] == [7, 7, 7, 7, 7]

@@ -514,6 +514,9 @@ def optimize(
             soft_penalty(data, sessions, child, weights)
             next_population.append(child)
         population = next_population
+        for item in population[:max(1, elite_count)]:
+            validate_candidate(data, sessions, item)
+            soft_penalty(data, sessions, item, weights)
     if improve_feasible:
         best = _improve_feasible(data, sessions, best, weights)
     validate_candidate(data, sessions, best)
